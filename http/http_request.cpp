@@ -50,9 +50,7 @@ HttpRequest parseHttpRequest(const std::string& raw) {
                 }
                 break;
             case ParseState::BODY:
-                // 简单处理：直接将剩余所有内容视为 body（适用于小请求）
-                std::getline(stream, body, '\0');
-                request.body = body;
+                request.body += line;
                 state = ParseState::FINISH;
                 break;
             case ParseState::FINISH:

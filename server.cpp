@@ -1,11 +1,4 @@
 #include "server.hpp"
-#include <iostream>
-#include <cstring>
-#include <unistd.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/epoll.h>
-#include "http/http_request.hpp"
 
 constexpr int MAX_EVENTS = 1024;  // epoll 每次最多返回的事件数量
 constexpr int READ_BUFFER = 4096;  // 每个 socket 读取数据时的缓冲区大小
@@ -84,6 +77,85 @@ std::string readFile(const std::string& file_path) {
     return oss.str();
 }
 
+std::string receiveHttpRequest(int client_fd) {
+    char buffer[READ_BUFFER];
+    memset(buffer, 0, sizeof(buffer));
+    std::string raw_data;
+
+    ssize_t n;
+    while ((n = recv(client_fd, buffer, READ_BUFFER, 0)) > 0) {
+        raw_data.append(buffer, n);
+
+        // 查找 header 结束位置
+        size_t header_end = raw_data.find("\r\n\r\n");
+        if (header_end != std::string::npos) {
+            // 查找 Content-Length
+            size_t content_len = 0;
+            size_t pos = raw_data.find("Content-Length:");
+            if (pos != std::string::npos) {
+                size_t start = pos + strlen("Content-Length:");
+                size_t end = raw_data.find("\r\n", start);
+                std::string len_str = raw_data.substr(start, end - start);
+                content_len = std::stoi(len_str);
+            }
+
+            // 当前是否已经接收完整报文
+            size_t total_expected = header_end + 4 + content_len;
+            if (raw_data.size() >= total_expected) {
+                break;
+            }
+        }
+    }
+
+    return raw_data;
+}
+
+void WebServer::handleGET(HttpRequest& request, int client_fd) {
+
+}
+
+void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
+    std::istringstream stream(body);
+    std::string pair;
+    while (std::getline(stream, pair, '&')) {
+        size_t eq_pos = pair.find('=');
+        if (eq_pos != std::string::npos) {
+            std::string key = decodeURLComponent(pair.substr(0, eq_pos));
+            std::string value = decodeURLComponent(pair.substr(eq_pos + 1));
+            data[key] = value;
+        }
+    }
+}
+
+std::string decodeURLComponent(const std::string& s) {
+    std::string result;
+    char ch;
+    int i, ii;
+    for (i = 0; i < s.length(); ++ i) {
+        if (int(s[i]) == 37) {
+            sscanf(s.substr(i + 1, 2).c_str(), "%x", &ii);
+            ch = static_cast<char>(ii);
+            result += ch;
+            i += 2;
+        } else if (s[i] == '+') {
+            result += ' ';
+        } else {
+            result += s[i];
+        }
+    }
+    return result;
+}
+
+void WebServer::handlePOST(HttpRequest& request, int client_fd) {
+    std::cout << "Content-Type: " << request.headers["Content-Type"] << "\n";
+    std::cout << "Content-Length: " << request.headers["Content-Length"] << "\n";
+    std::cout << "Body: " << request.body << "\n";
+
+    std::unordered_map<std::string, std::string> account;
+    parseFormURLEncoded(request.body, account);
+    std::cout << "用户名: " << account["username"] << ", 用户密码: " << account["password"] << "\n";
+}
+
 void WebServer::handleConnection(int client_fd) {
     char buffer[READ_BUFFER];
     memset(buffer, 0, sizeof(buffer));
@@ -93,20 +165,24 @@ void WebServer::handleConnection(int client_fd) {
         close(client_fd);
         return;
     }
-
+    
     // 解析收到的request并输出
     std::string raw(buffer, bytes_read);
+    // std::string raw_data = receiveHttpRequest(client_fd);
     HttpRequest request = parseHttpRequest(raw);
 
-    std::cout << "Method: " << request.method << "\n";
-    std::cout << "Path: " << request.path << "\n";
-    std::cout << "Version: " << request.version << "\n";
+    // std::cout << "Method: " << request.method << "\n";
+    // std::cout << "Path: " << request.path << "\n";
+    // std::cout << "Version: " << request.version << "\n";
     // for (auto& [key, value]: request.headers) {
     //     std::cout << "Header: " << key << ": " << value << "\n";
     // }
     // if (!request.body.empty()) {
     //     std::cout << "Body: " << request.body << "\n";
     // }
+    if (request.method == "POST") {
+        handlePOST(request, client_fd);
+    }
 
     // 根据客户端请求的 URL 路径，动态返回不同的页面内容
     std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
