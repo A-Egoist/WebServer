@@ -1,0 +1,66 @@
+# 核心忽略规则 =====================================
+
+# 忽略所有构建目录（通用模式）
+[bB]uild*/
+[_Oo]utput*/
+[_Bb]in/
+
+# CMake 生成的文件和目录
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+*.cmake
+*.ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+
+# 编译生成的文件
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# 项目特定可执行文件（根据你的项目名称调整）
+mysql_test
+
+# 编辑器/IDE 文件 ================================
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xuserdata/
+
+# Visual Studio
+*.vcxproj*
+*.sln
+*.suo
+*.user
+ipch/
+.vs/
+
+# 其他临时文件 ===================================
+*~
+*.swp
+*.bak
+*.tmp
+*.log
