@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)  # 设置CMake最低版本要求
 project(WebServer)  # 定义项目名称
 
 # 设置C++标准（根据你的项目需求调整）
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE Debug)
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

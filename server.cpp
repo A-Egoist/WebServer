@@ -61,6 +61,29 @@ void WebServer::initSocket() {
     epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &event);
 }
 
+std::string getContentType(const std::string& path) {
+    if (path.ends_with(".html") || path.ends_with(".htm"))
+        return "text/html";
+    if (path.ends_with(".css"))
+        return "text/css";
+    if (path.ends_with(".js"))
+        return "application/javascript";
+    if (path.ends_with(".png"))
+        return "image/png";
+    if (path.ends_with(".jpg") || path.ends_with(".jpeg"))
+        return "image/jpeg";
+    if (path.ends_with(".txt"))
+        return "text/plain";
+    return "application/octet-stream";
+}
+
+std::string readFile(const std::string& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    return oss.str();
+}
+
 void WebServer::handleConnection(int client_fd) {
     char buffer[READ_BUFFER];
     memset(buffer, 0, sizeof(buffer));
@@ -70,9 +93,6 @@ void WebServer::handleConnection(int client_fd) {
         close(client_fd);
         return;
     }
-
-    // 简单输出收到的request
-    // std::cout << "Received:\n" << buffer << std::endl;
 
     // 解析收到的request并输出
     std::string raw(buffer, bytes_read);
@@ -88,35 +108,37 @@ void WebServer::handleConnection(int client_fd) {
     //     std::cout << "Body: " << request.body << "\n";
     // }
 
-    // 简单处理 GET 请求并返回固定内容
-    // const char *response =
-    //     "HTTP/1.1 200 OK\r\n"
-    //     "Content-Type: text/html\r\n"
-    //     "Content-Length: 46\r\n"
-    //     "Connection: close\r\n"
-    //     "\r\n"
-    //     "<html><body><h1>Hello C++ Server</h1></body></html>";
-    // send(client_fd, response, strlen(response), 0);  // 发送响应
-
     // 根据客户端请求的 URL 路径，动态返回不同的页面内容
+    std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
+    std::string file_path;
     std::string response_body;
-    std::string content_type = "text/html";
+    std::string content_type;
     std::string status_line;
 
     // 路由匹配
     if (request.path == "/") {
-        response_body = "<html><body><h1>Welcome to C++ WebServer!</h1></body></html>";
-        status_line = "HTTP/1.1 200 OK\r\n";
-    } else if (request.path == "/about") {
-        response_body = "<html><body><h1>About Page</h1><p>This is a demo.</p></body></html>";
-        status_line = "HTTP/1.1 200 OK\r\n";
-    } else if (request.path == "/hello") {
-        response_body = "Hello World!";
-        content_type = "text/plain";
-        status_line = "HTTP/1.1 200 OK\r\n";
+        file_path = resources_root_path + "/index.html";
+    } else if (request.path == "/picture") {
+        file_path = resources_root_path + "/picture.html";
+    } else if (request.path == "/video") {
+        file_path = resources_root_path + "/video.html";
+    } else if (request.path == "/login") {
+        file_path = resources_root_path + "/login.html";
+    } else if (request.path == "/register") {
+        file_path = resources_root_path + "/register.html";
     } else {
-        response_body = "<html><body><h1>404 Not Found</h1></body></html>";
+        file_path = resources_root_path + request.path;
+    }
+
+    std::ifstream file(file_path, std::ios::binary);
+    if (file) {
+        status_line = "HTTP/1.1 200 OK\r\n";
+        response_body = readFile(file_path);
+        content_type = getContentType(file_path);
+    } else {
         status_line = "HTTP/1.1 404 Not Found\r\n";
+        response_body = readFile(resources_root_path + "/404.html");
+        content_type = "text/html";
     }
 
     std::string response = 

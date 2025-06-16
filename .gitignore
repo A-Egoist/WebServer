@@ -64,3 +64,4 @@ ipch/
 *.bak
 *.tmp
 *.log
+.DS_Store

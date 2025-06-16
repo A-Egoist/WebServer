@@ -1,5 +1,8 @@
 #pragma once
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
 
 class WebServer {
 public:
@@ -15,3 +18,7 @@ private:
     void handleConnection(int client_fd);
     void setNonBlocking(int fd);
 };
+
+std::string getContentType(const std::string&);
+
+std::string readFile(const std::string&);
