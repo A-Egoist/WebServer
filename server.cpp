@@ -226,7 +226,7 @@ void WebServer::handleConnection(int client_fd) {
         close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
         return ;
     }
-    
+
     if (file) {
         status_line = "HTTP/1.1 200 OK\r\n";
         response_body = readFile(file_path);
@@ -246,11 +246,13 @@ void WebServer::handleConnection(int client_fd) {
     
     send(client_fd, response.c_str(), response.size(), 0);  // 发送响应
     close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
+    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] out!");
 }
 
 void WebServer::run() {
     initSocket();  // 初始化服务器 socket + epoll
     std::cout << "Listening on port " << port_ << "...\n";
+    Logger::getInstance().log("INFO", "Listening on port " + std::to_string(port_) + "...");
 
     epoll_event events[MAX_EVENTS];  // 每个 events[i] 都表示一个就绪的 socket 文件描述符（fd）及其事件类型
 
@@ -264,7 +266,7 @@ void WebServer::run() {
         }
 
         // 遍历请求队列中的每一个 Connection
-        for (int i = 0; i < nfds; ++i) {
+        for (int i = 0; i < nfds; ++ i) {
             int fd = events[i].data.fd;
             if (fd == listen_fd_) {
                 // accept() 可能一次不止一个连接到达，使用 while(true) 反复处理
@@ -275,6 +277,7 @@ void WebServer::run() {
                     if (client_fd < 0) break;
 
                     setNonBlocking(client_fd);
+                    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] in!");
 
                     epoll_event event{};
                     event.data.fd = client_fd;

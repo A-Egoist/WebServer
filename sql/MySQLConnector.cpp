@@ -6,7 +6,7 @@ MySQLConnector::MySQLConnector() {
         driver_ = get_driver_instance();
         conn_ = driver_->connect("tcp://127.0.0.1:3306", "root", "Lx@259416");
         conn_->setSchema("WebServer_DB");
-        std::cout << "MySQL 连接成功！" << std::endl;
+        Logger::getInstance().log("INFO", "MySQL connection successful!");
     }
     catch(sql::SQLException& e)
     {
@@ -23,7 +23,7 @@ MySQLConnector::MySQLConnector(const std::string& host, const std::string& sql_u
         driver_ = get_driver_instance();
         conn_ = driver_->connect("tcp://127.0.0.1:3306", "root", "Lx@259416");
         conn_->setSchema("WebServer_DB");
-        std::cout << "MySQL 连接成功！" << std::endl;
+        Logger::getInstance().log("INFO", "MySQL connection successful!");
     }
     catch(sql::SQLException& e)
     {

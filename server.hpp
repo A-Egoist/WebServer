@@ -11,6 +11,7 @@
 #include <sys/epoll.h>
 #include "http/http_request.hpp"
 #include "sql/MySQLConnector.hpp"
+#include "log/log.hpp"
 
 class WebServer {
 public:

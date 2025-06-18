@@ -12,9 +12,10 @@ set(CMAKE_BUILD_TYPE Debug)
 # 添加头文件搜索路径（关键步骤！）
 include_directories(${PROJECT_SOURCE_DIR}/http)
 include_directories(${PROJECT_SOURCE_DIR}/sql)
+include_directories(${PROJECT_SOURCE_DIR}/log)
 
 # 添加可执行文件
-add_executable(webserver main.cpp server.cpp http/http_request.cpp sql/MySQLConnector.cpp)
+add_executable(webserver main.cpp server.cpp http/http_request.cpp sql/MySQLConnector.cpp log/log.cpp)
 
 target_link_libraries(webserver PRIVATE mysqlcppconn)
 

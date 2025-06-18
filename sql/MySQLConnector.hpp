@@ -7,8 +7,7 @@
 #include <cppconn/statement.h>
 #include <cppconn/resultset.h>
 #include <iostream>
-
-
+#include <../log/log.hpp>
 
 class MySQLConnector {
 public:
