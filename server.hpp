@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include "http/http_request.hpp"
+#include "sql/MySQLConnector.hpp"
 
 class WebServer {
 public:
@@ -20,6 +21,7 @@ private:
     int port_;  // 端口号
     int listen_fd_;  // 
     int epoll_fd_;  // 
+    MySQLConnector mysql;
 
     void initSocket();
     void handleConnection(int client_fd);

@@ -4,7 +4,7 @@ constexpr int MAX_EVENTS = 1024;  // epoll 每次最多返回的事件数量
 constexpr int READ_BUFFER = 4096;  // 每个 socket 读取数据时的缓冲区大小
 
 // 构造函数中只是初始化端口号和一些成员变量，listen_fd_ 和 epoll_fd_ 暂时设为无效值。
-WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1) {}
+WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql() {}
 
 // 设置文件描述符非阻塞
 void WebServer::setNonBlocking(int fd) {
@@ -154,6 +154,13 @@ void WebServer::handlePOST(HttpRequest& request, int client_fd) {
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request.body, account);
     std::cout << "用户名: " << account["username"] << ", 用户密码: " << account["password"] << "\n";
+    if (request.path == "/register") {
+        bool success = mysql.insertUser(account["username"], account["password"]);
+        std::cout << "Register sucess? " << success << std::endl;
+    } else if (request.path == "/login") {
+        bool sucess = mysql.verifyUser(account["username"], account["password"]);
+        std::cout << "Login sucess? " << sucess << std::endl;
+    }
 }
 
 void WebServer::handleConnection(int client_fd) {
