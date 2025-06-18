@@ -27,7 +27,7 @@ private:
     void handleConnection(int client_fd);
     void setNonBlocking(int fd);
     void handleGET(HttpRequest&, int);
-    void handlePOST(HttpRequest&, int);
+    bool handlePOST(HttpRequest&, int);
 };
 
 std::string getContentType(const std::string&);

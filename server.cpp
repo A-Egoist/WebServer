@@ -146,21 +146,23 @@ std::string decodeURLComponent(const std::string& s) {
     return result;
 }
 
-void WebServer::handlePOST(HttpRequest& request, int client_fd) {
+bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
     std::cout << "Content-Type: " << request.headers["Content-Type"] << "\n";
     std::cout << "Content-Length: " << request.headers["Content-Length"] << "\n";
     std::cout << "Body: " << request.body << "\n";
 
+    bool success = false;
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request.body, account);
     std::cout << "用户名: " << account["username"] << ", 用户密码: " << account["password"] << "\n";
     if (request.path == "/register") {
-        bool success = mysql.insertUser(account["username"], account["password"]);
-        std::cout << "Register sucess? " << success << std::endl;
+        success = mysql.insertUser(account["username"], account["password"]);
+        std::cout << "Register success? " << success << std::endl;
     } else if (request.path == "/login") {
-        bool sucess = mysql.verifyUser(account["username"], account["password"]);
-        std::cout << "Login sucess? " << sucess << std::endl;
+        success = mysql.verifyUser(account["username"], account["password"]);
+        std::cout << "Login success? " << success << std::endl;
     }
+    return success;
 }
 
 void WebServer::handleConnection(int client_fd) {
@@ -177,19 +179,6 @@ void WebServer::handleConnection(int client_fd) {
     std::string raw(buffer, bytes_read);
     // std::string raw_data = receiveHttpRequest(client_fd);
     HttpRequest request = parseHttpRequest(raw);
-
-    // std::cout << "Method: " << request.method << "\n";
-    // std::cout << "Path: " << request.path << "\n";
-    // std::cout << "Version: " << request.version << "\n";
-    // for (auto& [key, value]: request.headers) {
-    //     std::cout << "Header: " << key << ": " << value << "\n";
-    // }
-    // if (!request.body.empty()) {
-    //     std::cout << "Body: " << request.body << "\n";
-    // }
-    if (request.method == "POST") {
-        handlePOST(request, client_fd);
-    }
 
     // 根据客户端请求的 URL 路径，动态返回不同的页面内容
     std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
@@ -209,11 +198,35 @@ void WebServer::handleConnection(int client_fd) {
         file_path = resources_root_path + "/login.html";
     } else if (request.path == "/register") {
         file_path = resources_root_path + "/register.html";
+    } else if (request.path == "/welcome") {
+        file_path = resources_root_path + "/welcome.html";
     } else {
         file_path = resources_root_path + request.path;
     }
 
+    bool is_redirect = false;
+    if (request.method == "POST") {
+        bool success = handlePOST(request, client_fd);
+        if (success) {
+            is_redirect = true;  // 设置重定向 flag
+        }
+    }
+
     std::ifstream file(file_path, std::ios::binary);
+    if (is_redirect) {
+        status_line = "HTTP/1.1 302 Found\r\n";
+        std::string redirect_location = "/welcome";  // 重定向到 welcome 界面
+
+        std::string redirect_response = 
+            status_line + 
+            "Location: " + redirect_location + "\r\n" + 
+            "Content-Length: 0\r\n" + 
+            "Connection: close\r\n\r\n";
+        send(client_fd, redirect_response.c_str(), redirect_response.size(), 0);  // 发送响应
+        close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
+        return ;
+    }
+    
     if (file) {
         status_line = "HTTP/1.1 200 OK\r\n";
         response_body = readFile(file_path);
