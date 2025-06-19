@@ -2,6 +2,7 @@
 
 constexpr int MAX_EVENTS = 1024;  // epoll 每次最多返回的事件数量
 constexpr int READ_BUFFER = 4096;  // 每个 socket 读取数据时的缓冲区大小
+constexpr int KEEP_ALIVE_TIMEOUT = 5000;  // 5 秒
 
 // 构造函数中只是初始化端口号和一些成员变量，listen_fd_ 和 epoll_fd_ 暂时设为无效值。
 WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql() {}
@@ -147,38 +148,21 @@ std::string decodeURLComponent(const std::string& s) {
 }
 
 bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
-    std::cout << "Content-Type: " << request.headers["Content-Type"] << "\n";
-    std::cout << "Content-Length: " << request.headers["Content-Length"] << "\n";
-    std::cout << "Body: " << request.body << "\n";
-
     bool success = false;
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request.body, account);
-    std::cout << "用户名: " << account["username"] << ", 用户密码: " << account["password"] << "\n";
     if (request.path == "/register") {
         success = mysql.insertUser(account["username"], account["password"]);
-        std::cout << "Register success? " << success << std::endl;
     } else if (request.path == "/login") {
         success = mysql.verifyUser(account["username"], account["password"]);
-        std::cout << "Login success? " << success << std::endl;
     }
     return success;
 }
 
 void WebServer::handleConnection(int client_fd) {
-    char buffer[READ_BUFFER];
-    memset(buffer, 0, sizeof(buffer));
-
-    int bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);  // 从客户端读取数据
-    if (bytes_read <= 0) {
-        close(client_fd);
-        return;
-    }
-    
-    // 解析收到的request并输出
-    std::string raw(buffer, bytes_read);
-    // std::string raw_data = receiveHttpRequest(client_fd);
-    HttpRequest request = parseHttpRequest(raw);
+    // 只处理一次请求
+    std::string raw_data = receiveHttpRequest(client_fd);
+    HttpRequest request = parseHttpRequest(raw_data);
 
     // 根据客户端请求的 URL 路径，动态返回不同的页面内容
     std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
@@ -221,9 +205,12 @@ void WebServer::handleConnection(int client_fd) {
             status_line + 
             "Location: " + redirect_location + "\r\n" + 
             "Content-Length: 0\r\n" + 
-            "Connection: close\r\n\r\n";
+            "Connection: keep-alive\r\n\r\n";
         send(client_fd, redirect_response.c_str(), redirect_response.size(), 0);  // 发送响应
-        close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
+        // close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
+        timer_mgr_.addOrUpdateTimer(client_fd, KEEP_ALIVE_TIMEOUT, [this, client_fd]() {
+            closeClient(client_fd);
+        });
         return ;
     }
 
@@ -241,12 +228,15 @@ void WebServer::handleConnection(int client_fd) {
         status_line + 
         "Content-Type: " + content_type + "\r\n" + 
         "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: close\r\n\r\n" + 
+        "Connection: keep-alive\r\n\r\n" + 
         response_body;
     
     send(client_fd, response.c_str(), response.size(), 0);  // 发送响应
-    close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
-    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] out!");
+    timer_mgr_.addOrUpdateTimer(client_fd, KEEP_ALIVE_TIMEOUT, [this, client_fd]() {
+        closeClient(client_fd);
+    });
+    // close(client_fd);  // 因为 HTTP/1.1 默认是持久连接，但这里我们主动设置 Connection: close，并立即 close(client_fd)，因此是非 keep-alive 处理
+    // Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] out!");
 }
 
 void WebServer::run() {
@@ -278,6 +268,9 @@ void WebServer::run() {
 
                     setNonBlocking(client_fd);
                     Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] in!");
+                    timer_mgr_.addOrUpdateTimer(client_fd, KEEP_ALIVE_TIMEOUT, [this, client_fd]() {
+                        closeClient(client_fd);
+                    });
 
                     epoll_event event{};
                     event.data.fd = client_fd;
@@ -288,8 +281,15 @@ void WebServer::run() {
                 handleConnection(fd);
             }
         }
+        timer_mgr_.handleExpired();
     }
 
     close(listen_fd_);
     close(epoll_fd_);
+}
+
+void WebServer::closeClient(int fd) {
+    epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
+    close(fd);
+    Logger::getInstance().log("INFO", "Client[" + std::to_string(fd) + "] closed");
 }
