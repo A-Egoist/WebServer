@@ -16,7 +16,7 @@ include_directories(${PROJECT_SOURCE_DIR}/log)
 include_directories(${PROJECT_SOURCE_DIR}/timer)
 
 # 添加可执行文件
-add_executable(webserver main.cpp server.cpp http/http_request.cpp sql/MySQLConnector.cpp log/log.cpp timer/timer_manager.cpp)
+add_executable(webserver main.cpp server.cpp http/http_request.cpp sql/MySQLConnector.cpp log/log.cpp timer/timer_task.cpp)
 
 target_link_libraries(webserver PRIVATE mysqlcppconn)
 
