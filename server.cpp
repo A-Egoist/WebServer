@@ -2,6 +2,7 @@
 
 constexpr int MAX_EVENTS = 1024;  // epoll 每次最多返回的事件数量
 constexpr int READ_BUFFER = 4096;  // 每个 socket 读取数据时的缓冲区大小
+constexpr int MAX_TIMEOUT = 5000;  // 5 秒未活跃则关闭
 
 // 构造函数中只是初始化端口号和一些成员变量，listen_fd_ 和 epoll_fd_ 暂时设为无效值。
 WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql() {}
@@ -78,9 +79,10 @@ std::string readFile(const std::string& file_path) {
 }
 
 void WebServer::closeClient(int client_fd) {
+    heap_timer_.removeTimer(client_fd);
     epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
     close(client_fd);
-    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed, which is used " + std::to_string(clients[client_fd].useCount) + " times.");
+    // Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed, which is used " + std::to_string(clients[client_fd].useCount) + " times.");
 }
 
 void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
@@ -187,10 +189,13 @@ bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
 }
 
 void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
-    bool isKeepAlive = (request.headers["Connection"] == "keep-alive");
+    bool isKeepAlive = (request.version == "HTTP/1.1");
+    isKeepAlive = !(request.headers["Connection"] == "close");
+    // std::cout << "Client[" << client_fd << "] Version: " << request.version << "\n";
+    // std::cout << "Client[" << client_fd << "] Connection: " << request.headers["Connection"] << "\n";
+    // std::cout << "Client[" << client_fd << "] isKeepAlive: " << isKeepAlive << "\n";
     clients[client_fd].keepAlive = isKeepAlive;
     ++ clients[client_fd].useCount;
-    // std::cout << "Client[" << client_fd << "] Connection: " << request.headers["Connection"] << "\n";
     std::string response;
     // POST
     if (request.method == "POST") {
@@ -235,12 +240,23 @@ void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
 void WebServer::handleConnection(int client_fd) {
     std::string raw_data;
     bool isConnection = receiveHttpRequest(client_fd, raw_data);
-    if (!isConnection) return;
+    if (!isConnection) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to network error or read error, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
+            closeClient(client_fd);
+            clients.erase(client_fd);
+        }
+        return;
+    }
+    // std::cout << "raw_data: \n" << raw_data << "\n";
 
     HttpRequest request = parseHttpRequest(raw_data);
     processHttpRequest(client_fd, request);
 
-    if (!clients[client_fd].keepAlive) {
+    if (clients[client_fd].keepAlive) {
+        heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
+    } else {
+        Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to http request, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
         closeClient(client_fd);
         clients.erase(client_fd);
     }
@@ -255,8 +271,11 @@ void WebServer::run() {
 
     // 持续监听
     while (true) {
+        int timeout = heap_timer_.getNextTick();  // 每次循环动态调整等待时间
+
         // 获取请求队列长度
-        int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1);  // 阻塞等待就绪事件
+        // int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1);  // 阻塞等待就绪事件
+        int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, timeout);  // 阻塞等待就绪事件
         if (nfds == -1) {
             perror("epoll_wait failed");
             break;
@@ -274,6 +293,7 @@ void WebServer::run() {
                     if (client_fd < 0) break;
 
                     setNonBlocking(client_fd);
+                    heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
                     Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] in!");
 
                     epoll_event event{};
@@ -286,6 +306,13 @@ void WebServer::run() {
                 handleConnection(fd);
             }
         }
+        heap_timer_.tick([this](int fd) {
+            if (clients.count(fd)) {
+                Logger::getInstance().log("INFO", "Client[" + std::to_string(fd) + "] is closed due to timeout, and it is used " + std::to_string(clients[fd].useCount) + " times.");
+                closeClient(fd);
+                clients.erase(fd);
+            }
+        });
     }
 
     close(listen_fd_);

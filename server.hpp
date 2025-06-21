@@ -12,6 +12,7 @@
 #include "http/http_request.hpp"
 #include "sql/MySQLConnector.hpp"
 #include "log/log.hpp"
+#include "timer/heaptimer.hpp"
 
 class WebServer {
 public:
@@ -31,6 +32,7 @@ private:
         int useCount;
     };
     std::unordered_map<int, ClientConnection> clients;
+    HeapTimer heap_timer_;
 
     void initSocket();
     void handleConnection(int client_fd);
