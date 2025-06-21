@@ -24,6 +24,13 @@ private:
     int listen_fd_;  // 
     int epoll_fd_;  // 
     MySQLConnector mysql;
+    struct ClientConnection
+    {
+        std::string buffer;
+        bool keepAlive;
+        int useCount;
+    };
+    std::unordered_map<int, ClientConnection> clients;
 
     void initSocket();
     void handleConnection(int client_fd);
@@ -31,13 +38,12 @@ private:
     bool handlePOST(HttpRequest& request, int client_fd);
     void processHttpRequest(int client_fd, HttpRequest& request);
     std::string router(std::string& requestPath);
+    bool receiveHttpRequest(int client_fd, std::string& output);
 };
 
 std::string getContentType(const std::string& path);
 
 std::string readFile(const std::string& file_path);
-
-std::string receiveHttpRequest(int client_fd);
 
 void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data);
 

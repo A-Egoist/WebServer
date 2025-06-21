@@ -77,37 +77,10 @@ std::string readFile(const std::string& file_path) {
     return oss.str();
 }
 
-std::string receiveHttpRequest(int client_fd) {
-    char buffer[READ_BUFFER];
-    memset(buffer, 0, sizeof(buffer));
-    std::string raw_data;
-
-    ssize_t n;
-    while ((n = recv(client_fd, buffer, READ_BUFFER, 0)) > 0) {
-        raw_data.append(buffer, n);
-
-        // 查找 header 结束位置
-        size_t header_end = raw_data.find("\r\n\r\n");
-        if (header_end != std::string::npos) {
-            // 查找 Content-Length
-            size_t content_len = 0;
-            size_t pos = raw_data.find("Content-Length:");
-            if (pos != std::string::npos) {
-                size_t start = pos + strlen("Content-Length:");
-                size_t end = raw_data.find("\r\n", start);
-                std::string len_str = raw_data.substr(start, end - start);
-                content_len = std::stoi(len_str);
-            }
-
-            // 当前是否已经接收完整报文
-            size_t total_expected = header_end + 4 + content_len;
-            if (raw_data.size() >= total_expected) {
-                break;
-            }
-        }
-    }
-
-    return raw_data;
+void WebServer::closeClient(int client_fd) {
+    epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
+    close(client_fd);
+    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed, which is used " + std::to_string(clients[client_fd].useCount) + " times.");
 }
 
 void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
@@ -142,6 +115,65 @@ std::string decodeURLComponent(const std::string& s) {
     return result;
 }
 
+std::string WebServer::router(std::string& requestPath) {
+    std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
+    std::string file_absolute_path;
+    // 路由匹配
+    if (requestPath == "/") {
+        file_absolute_path = resources_root_path + "/index.html";
+    } else if (requestPath == "/picture") {
+        file_absolute_path = resources_root_path + "/picture.html";
+    } else if (requestPath == "/video") {
+        file_absolute_path = resources_root_path + "/video.html";
+    } else if (requestPath == "/login") {
+        file_absolute_path = resources_root_path + "/login.html";
+    } else if (requestPath == "/register") {
+        file_absolute_path = resources_root_path + "/register.html";
+    } else if (requestPath == "/welcome") {
+        file_absolute_path = resources_root_path + "/welcome.html";
+    } else {
+        file_absolute_path = resources_root_path + requestPath;
+    }
+    return file_absolute_path;
+}
+
+bool WebServer::receiveHttpRequest(int client_fd, std::string& output) {
+    char buffer[READ_BUFFER];
+
+    ssize_t n;
+    while ((n = recv(client_fd, buffer, READ_BUFFER, 0)) > 0) {
+        clients[client_fd].buffer.append(buffer, n);
+
+        // 查找 header 结束位置
+        size_t header_end = clients[client_fd].buffer.find("\r\n\r\n");
+        if (header_end != std::string::npos) {
+            // 查找 Content-Length
+            size_t content_len = 0;
+            size_t pos = clients[client_fd].buffer.find("Content-Length:");
+            if (pos != std::string::npos) {
+                size_t start = pos + strlen("Content-Length:");
+                size_t end = clients[client_fd].buffer.find("\r\n", start);
+                std::string len_str = clients[client_fd].buffer.substr(start, end - start);
+                content_len = std::stoi(len_str);
+            }
+
+            // 当前是否已经接收完整报文
+            size_t total_expected = header_end + 4 + content_len;  // len('/r/n/r/n') = 4
+            if (clients[client_fd].buffer.size() >= total_expected) {
+                output = clients[client_fd].buffer.substr(0, total_expected);
+                clients[client_fd].buffer.erase(0, total_expected);  // erase the proposed request
+                return true;
+            }
+        }
+    }
+
+    // The client closed the link
+    if (n == 0) return false;
+
+    // EAGAIN
+    return false;
+}
+
 bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
     bool success = false;
     std::unordered_map<std::string, std::string> account;
@@ -154,14 +186,65 @@ bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
     return success;
 }
 
-void WebServer::handleConnection(int client_fd) {
-    std::string raw_data = receiveHttpRequest(client_fd);
-    HttpRequest request = parseHttpRequest(raw_data);
+void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
+    bool isKeepAlive = (request.headers["Connection"] == "keep-alive");
+    clients[client_fd].keepAlive = isKeepAlive;
+    ++ clients[client_fd].useCount;
+    // std::cout << "Client[" << client_fd << "] Connection: " << request.headers["Connection"] << "\n";
+    std::string response;
+    // POST
+    if (request.method == "POST") {
+        bool success = handlePOST(request, client_fd);
+        if (success) {
+            response = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
+            response = response + (isKeepAlive ? "keep-alive" : "close") + "\r\n\r\n";
+            send(client_fd, response.c_str(), response.size(), 0);  // 发送重定向响应
+            return ;
+        } else {
+            // TODO, Incorrect username or password;
+        }
+    }
 
-    processHttpRequest(client_fd, request);
-    closeClient(client_fd);
+    // GET
+    std::string status_line;
+    std::string response_body;
+    std::string content_type;
+    std::string file_path = router(request.path);
+    std::ifstream file(file_path, std::ios::binary);
+    
+    if (file) {
+        status_line = "HTTP/1.1 200 OK\r\n";
+        response_body = readFile(file_path);
+        content_type = getContentType(file_path);
+    } else {
+        status_line = "HTTP/1.1 404 Not Found\r\n";
+        response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
+        content_type = "text/html";
+    }
+
+    response = 
+        status_line + 
+        "Content-Type: " + content_type + "\r\n" + 
+        "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
+        "Connection: " + (isKeepAlive ? "keep-alive" : "close") + "\r\n\r\n" + 
+        response_body;
+    
+    send(client_fd, response.c_str(), response.size(), 0);  // 发送响应
 }
 
+void WebServer::handleConnection(int client_fd) {
+    std::string raw_data;
+    bool isConnection = receiveHttpRequest(client_fd, raw_data);
+    if (!isConnection) return;
+
+    HttpRequest request = parseHttpRequest(raw_data);
+    processHttpRequest(client_fd, request);
+
+    if (!clients[client_fd].keepAlive) {
+        closeClient(client_fd);
+        clients.erase(client_fd);
+    }
+}
 
 void WebServer::run() {
     initSocket();  // 初始化服务器 socket + epoll
@@ -207,74 +290,4 @@ void WebServer::run() {
 
     close(listen_fd_);
     close(epoll_fd_);
-}
-
-void WebServer::closeClient(int client_fd) {
-    epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
-    close(client_fd);
-    Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] closed");
-}
-
-void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
-    // 根据客户端请求的 URL 路径，动态返回不同的页面内容
-    std::string file_path = router(request.path);
-    
-    // POST
-    if (request.method == "POST") {
-        bool success = handlePOST(request, client_fd);
-        if (success) {
-            std::string redirect_response = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: close\r\n";
-            send(client_fd, redirect_response.c_str(), redirect_response.size(), 0);  // 发送重定向响应
-            return ;
-        } else {
-            // TODO, Incorrect username or password;
-        }
-    }
-
-    // GET
-    std::string status_line;
-    std::string response_body;
-    std::string content_type;
-    std::ifstream file(file_path, std::ios::binary);
-    
-    if (file) {
-        status_line = "HTTP/1.1 200 OK\r\n";
-        response_body = readFile(file_path);
-        content_type = getContentType(file_path);
-    } else {
-        status_line = "HTTP/1.1 404 Not Found\r\n";
-        response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-        content_type = "text/html";
-    }
-
-    std::string response = 
-        status_line + 
-        "Content-Type: " + content_type + "\r\n" + 
-        "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: close\r\n\r\n" + 
-        response_body;
-    
-    send(client_fd, response.c_str(), response.size(), 0);  // 发送响应
-}
-
-std::string WebServer::router(std::string& requestPath) {
-    std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
-    std::string file_absolute_path;
-    // 路由匹配
-    if (requestPath == "/") {
-        file_absolute_path = resources_root_path + "/index.html";
-    } else if (requestPath == "/picture") {
-        file_absolute_path = resources_root_path + "/picture.html";
-    } else if (requestPath == "/video") {
-        file_absolute_path = resources_root_path + "/video.html";
-    } else if (requestPath == "/login") {
-        file_absolute_path = resources_root_path + "/login.html";
-    } else if (requestPath == "/register") {
-        file_absolute_path = resources_root_path + "/register.html";
-    } else if (requestPath == "/welcome") {
-        file_absolute_path = resources_root_path + "/welcome.html";
-    } else {
-        file_absolute_path = resources_root_path + requestPath;
-    }
-    return file_absolute_path;
 }
