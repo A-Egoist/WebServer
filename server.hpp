@@ -12,7 +12,6 @@
 #include "http/http_request.hpp"
 #include "sql/MySQLConnector.hpp"
 #include "log/log.hpp"
-#include "timer/timer_task.hpp"
 
 class WebServer {
 public:
@@ -25,29 +24,21 @@ private:
     int listen_fd_;  // 
     int epoll_fd_;  // 
     MySQLConnector mysql;
-    // TimerManager timer_mgr_;
-    std::unordered_map<int, std::shared_ptr<TimerTask>> timers_;
-    std::queue<int> close_queue_;
-    std::mutex close_queue_mutex_;
 
     void initSocket();
     void handleConnection(int client_fd);
     void setNonBlocking(int fd);
-    void handleGET(HttpRequest&, int);
-    bool handlePOST(HttpRequest&, int);
+    bool handlePOST(HttpRequest& request, int client_fd);
     void processHttpRequest(int client_fd, HttpRequest& request);
-    void addOrUpdateTimer(int client_fd, int timeout_ms);
-    void processCloseQueue();
+    std::string router(std::string& requestPath);
 };
 
-std::string getContentType(const std::string&);
+std::string getContentType(const std::string& path);
 
-std::string readFile(const std::string&);
+std::string readFile(const std::string& file_path);
 
-std::string receiveHttpRequest(int);
+std::string receiveHttpRequest(int client_fd);
 
-bool tryParseHttpRequest(const std::string& raw, HttpRequest& request, size_t& request_len);
+void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data);
 
-void parseFormURLEncoded(const std::string&, std::unordered_map<std::string, std::string>&);
-
-std::string decodeURLComponent(const std::string&);
+std::string decodeURLComponent(const std::string& s);
