@@ -26,4 +26,5 @@ private:
     std::thread write_thread_;
     std::atomic<bool> running_;
     bool async_;
+    std::mutex log_mutex_;
 };

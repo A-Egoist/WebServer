@@ -13,6 +13,7 @@
 #include "sql/MySQLConnector.hpp"
 #include "log/log.hpp"
 #include "timer/heaptimer.hpp"
+#include "pool/ThreadPool.hpp"
 
 class WebServer {
 public:
@@ -33,6 +34,8 @@ private:
     };
     std::unordered_map<int, ClientConnection> clients;
     HeapTimer heap_timer_;
+    ThreadPool thread_pool_;
+    std::mutex clients_mutex_;
 
     void initSocket();
     void handleConnection(int client_fd);

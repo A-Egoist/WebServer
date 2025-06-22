@@ -38,6 +38,7 @@ void Logger::log(const std::string& level, const std::string& message) {
     if (async_) {
         queue_.push(ss.str());
     } else {
+        std::lock_guard<std::mutex> lock(log_mutex_);
         log_file_ << ss.str();
     }
 }
