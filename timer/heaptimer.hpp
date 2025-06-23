@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <queue>
 #include <functional>
+#include <vector>
+#include <mutex>
 
 struct TimerNode {
     int client_fd;
@@ -22,11 +24,12 @@ public:
     // 删除定时器
     void removeTimer(int client_fd);
     // 检查所有过期的连接，并调用回调关闭
-    void tick(const std::function<void(int)>& timeout_callback);
+    void tick(std::vector<int>& expired_fds);
     // 获取最近一次定时器事件剩余时间
     int getNextTick();
 private:
     int64_t getTimeMs() const;
+    std::mutex mutex_;
 
     std::priority_queue<TimerNode> heap_;  // 小根堆
     std::unordered_map<int, int64_t> client_fd_to_expire_;  // client_fd 到过期时间的映射

@@ -3,7 +3,7 @@
 constexpr int MAX_EVENTS = 1024;  // epoll 每次最多返回的事件数量
 constexpr int READ_BUFFER = 4096;  // 每个 socket 读取数据时的缓冲区大小
 constexpr int MAX_TIMEOUT = 5000;  // 5 秒未活跃则关闭
-constexpr int MAX_THREAD_COUNT = 8;  // 线程池最大容量
+constexpr int MAX_THREAD_COUNT = 10;  // 线程池最大容量
 
 // 构造函数中只是初始化端口号和一些成员变量，listen_fd_ 和 epoll_fd_ 暂时设为无效值。
 WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql(), thread_pool_(MAX_THREAD_COUNT) {}
@@ -141,6 +141,7 @@ std::string WebServer::router(std::string& requestPath) {
 }
 
 bool WebServer::receiveHttpRequest(int client_fd, std::string& output) {
+    std::lock_guard<std::mutex> lock(clients_mutex_);
     char buffer[READ_BUFFER];
 
     ssize_t n;
@@ -193,8 +194,12 @@ void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
     // bool isKeepAlive = (request.version == "HTTP/1.1");
     // isKeepAlive = !(request.headers["Connection"] == "close");
     bool isKeepAlive = (request.headers["Connection"] == "keep-alive");
-    clients[client_fd].keepAlive = isKeepAlive;
-    ++ clients[client_fd].useCount;
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex_);
+        clients[client_fd].keepAlive = isKeepAlive;
+        ++ clients[client_fd].useCount;
+    }
+
     std::string response;
     // POST
     if (request.method == "POST") {
@@ -243,14 +248,13 @@ void WebServer::handleConnection(int client_fd) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             {
                 std::lock_guard<std::mutex> lock(clients_mutex_);
-                Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to network error or read error, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
+                Logger::getInstance().log("ERROR", "Client[" + std::to_string(client_fd) + "] is closed due to network error or read error, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
                 clients.erase(client_fd);
             }
             closeClient(client_fd);
         }
         return;
     }
-    // std::cout << "raw_data: \n" << raw_data << "\n";
 
     HttpRequest request = parseHttpRequest(raw_data);
     processHttpRequest(client_fd, request);
@@ -297,8 +301,8 @@ void WebServer::run() {
                     int client_fd = accept(listen_fd_, (sockaddr*)&client_addr, &client_len);
                     if (client_fd < 0) break;
 
-                    setNonBlocking(client_fd);
-                    heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
+                    setNonBlocking(client_fd);  // 设置为非阻塞模式
+                    heap_timer_.addTimer(client_fd, MAX_TIMEOUT);  // 给client_fd添加定时器
                     Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] in!");
 
                     epoll_event event{};
@@ -308,19 +312,21 @@ void WebServer::run() {
                 }
             } else {
                 // 处理客户端数据
-                // handleConnection(fd);
                 thread_pool_.enqueue([this, fd] {
                     this->handleConnection(fd);
                 });
             }
         }
-        heap_timer_.tick([this](int fd) {
+        std::vector<int> expired_fds;
+        heap_timer_.tick(expired_fds);
+
+        for (int fd: expired_fds) {
             if (clients.count(fd)) {
                 Logger::getInstance().log("INFO", "Client[" + std::to_string(fd) + "] is closed due to timeout, and it is used " + std::to_string(clients[fd].useCount) + " times.");
                 closeClient(fd);
                 clients.erase(fd);
             }
-        });
+        }
     }
 
     close(listen_fd_);

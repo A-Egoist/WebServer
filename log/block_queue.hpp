@@ -10,7 +10,7 @@ public:
 
     void push(const T& item) {
         std::unique_lock<std::mutex> lock(mutex_);
-        cond_consumer_.wait(lock, [this]() { return queue_.size() < max_size_; });
+        cond_productor_.wait(lock, [this]() { return queue_.size() < max_size_; });
         queue_.push(item);
         cond_consumer_.notify_one();
     }
