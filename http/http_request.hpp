@@ -7,9 +7,9 @@
 
 struct HttpRequest
 {
-    std::string method;
-    std::string path;
-    std::string version;
+    std::string method;  // [GET, POST, ...]
+    std::string path;  // request path, ["/", "/index", "/picture", ...]
+    std::string version;  // HTTP version, ["HTTP/1.1", "HTTP/1.0", ...]
     std::unordered_map<std::string, std::string> headers;
     std::string body;
 };

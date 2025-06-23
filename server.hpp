@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include "http/http_request.hpp"
+#include "http/HTTPConnection.hpp"
 #include "sql/MySQLConnector.hpp"
 #include "log/log.hpp"
 #include "timer/heaptimer.hpp"
