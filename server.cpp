@@ -56,29 +56,6 @@ void WebServer::initSocket() {
     epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &event);
 }
 
-std::string getContentType(const std::string& path) {
-    if (path.ends_with(".html") || path.ends_with(".htm"))
-        return "text/html";
-    if (path.ends_with(".css"))
-        return "text/css";
-    if (path.ends_with(".js"))
-        return "application/javascript";
-    if (path.ends_with(".png"))
-        return "image/png";
-    if (path.ends_with(".jpg") || path.ends_with(".jpeg"))
-        return "image/jpeg";
-    if (path.ends_with(".txt"))
-        return "text/plain";
-    return "application/octet-stream";
-}
-
-std::string readFile(const std::string& file_path) {
-    std::ifstream file(file_path, std::ios::binary);
-    std::ostringstream oss;
-    oss << file.rdbuf();
-    return oss.str();
-}
-
 void WebServer::closeClient(int client_fd) {
     heap_timer_.removeTimer(client_fd);
     epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
@@ -86,185 +63,44 @@ void WebServer::closeClient(int client_fd) {
     // Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed, which is used " + std::to_string(clients[client_fd].useCount) + " times.");
 }
 
-void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
-    std::istringstream stream(body);
-    std::string pair;
-    while (std::getline(stream, pair, '&')) {
-        size_t eq_pos = pair.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string key = decodeURLComponent(pair.substr(0, eq_pos));
-            std::string value = decodeURLComponent(pair.substr(eq_pos + 1));
-            data[key] = value;
-        }
-    }
-}
-
-std::string decodeURLComponent(const std::string& s) {
-    std::string result;
-    char ch;
-    int i, ii;
-    for (i = 0; i < s.length(); ++ i) {
-        if (int(s[i]) == 37) {
-            sscanf(s.substr(i + 1, 2).c_str(), "%x", &ii);
-            ch = static_cast<char>(ii);
-            result += ch;
-            i += 2;
-        } else if (s[i] == '+') {
-            result += ' ';
-        } else {
-            result += s[i];
-        }
-    }
-    return result;
-}
-
-std::string WebServer::router(std::string& requestPath) {
-    std::string resources_root_path = "/home/amonologue/Projects/WebServer/resources";
-    std::string file_absolute_path;
-    // 路由匹配
-    if (requestPath == "/") {
-        file_absolute_path = resources_root_path + "/index.html";
-    } else if (requestPath == "/picture") {
-        file_absolute_path = resources_root_path + "/picture.html";
-    } else if (requestPath == "/video") {
-        file_absolute_path = resources_root_path + "/video.html";
-    } else if (requestPath == "/login") {
-        file_absolute_path = resources_root_path + "/login.html";
-    } else if (requestPath == "/register") {
-        file_absolute_path = resources_root_path + "/register.html";
-    } else if (requestPath == "/welcome") {
-        file_absolute_path = resources_root_path + "/welcome.html";
-    } else {
-        file_absolute_path = resources_root_path + requestPath;
-    }
-    return file_absolute_path;
-}
-
-bool WebServer::receiveHttpRequest(int client_fd, std::string& output) {
-    std::lock_guard<std::mutex> lock(clients_mutex_);
-    char buffer[READ_BUFFER];
-
-    ssize_t n;
-    while ((n = recv(client_fd, buffer, READ_BUFFER, 0)) > 0) {
-        clients[client_fd].buffer.append(buffer, n);
-
-        // 查找 header 结束位置
-        size_t header_end = clients[client_fd].buffer.find("\r\n\r\n");
-        if (header_end != std::string::npos) {
-            // 查找 Content-Length
-            size_t content_len = 0;
-            size_t pos = clients[client_fd].buffer.find("Content-Length:");
-            if (pos != std::string::npos) {
-                size_t start = pos + strlen("Content-Length:");
-                size_t end = clients[client_fd].buffer.find("\r\n", start);
-                std::string len_str = clients[client_fd].buffer.substr(start, end - start);
-                content_len = std::stoi(len_str);
-            }
-
-            // 当前是否已经接收完整报文
-            size_t total_expected = header_end + 4 + content_len;  // len('/r/n/r/n') = 4
-            if (clients[client_fd].buffer.size() >= total_expected) {
-                output = clients[client_fd].buffer.substr(0, total_expected);
-                clients[client_fd].buffer.erase(0, total_expected);  // erase the proposed request
-                return true;
-            }
-        }
-    }
-
-    // The client closed the link
-    if (n == 0) return false;
-
-    // EAGAIN
-    return false;
-}
-
-bool WebServer::handlePOST(HttpRequest& request, int client_fd) {
-    bool success = false;
-    std::unordered_map<std::string, std::string> account;
-    parseFormURLEncoded(request.body, account);
-    if (request.path == "/register") {
-        success = mysql.insertUser(account["username"], account["password"]);
-    } else if (request.path == "/login") {
-        success = mysql.verifyUser(account["username"], account["password"]);
-    }
-    return success;
-}
-
-void WebServer::processHttpRequest(int client_fd, HttpRequest& request) {
-    // bool isKeepAlive = (request.version == "HTTP/1.1");
-    // isKeepAlive = !(request.headers["Connection"] == "close");
-    bool isKeepAlive = (request.headers["Connection"] == "keep-alive");
+void WebServer::handleConnection(int client_fd) {
+    HTTPConnection* conn_ptr = nullptr;
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
-        clients[client_fd].keepAlive = isKeepAlive;
-        ++ clients[client_fd].useCount;
+        // HTTPConnection http_connection(client_fd);
+        // auto [iter, success] = clients.try_emplace(client_fd, std::move(http_connection));
+        auto [iter, success] = clients.try_emplace(client_fd, client_fd, &mysql);
+        conn_ptr = &(iter->second);
+        ++ conn_ptr->use_count;
     }
+    HTTPConnection& conn = *conn_ptr;
 
-    std::string response;
-    // POST
-    if (request.method == "POST") {
-        bool success = handlePOST(request, client_fd);
-        if (success) {
-            response = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
-            response = response + (isKeepAlive ? "keep-alive" : "close") + "\r\n\r\n";
-            send(client_fd, response.c_str(), response.size(), 0);  // 发送重定向响应
-            return ;
-        } else {
-            // TODO, Incorrect username or password;
-        }
-    }
-
-    // GET
-    std::string status_line;
-    std::string response_body;
-    std::string content_type;
-    std::string file_path = router(request.path);
-    std::ifstream file(file_path, std::ios::binary);
-    
-    if (file) {
-        status_line = "HTTP/1.1 200 OK\r\n";
-        response_body = readFile(file_path);
-        content_type = getContentType(file_path);
-    } else {
-        status_line = "HTTP/1.1 404 Not Found\r\n";
-        response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-        content_type = "text/html";
-    }
-
-    response = 
-        status_line + 
-        "Content-Type: " + content_type + "\r\n" + 
-        "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: " + (isKeepAlive ? "keep-alive" : "close") + "\r\n\r\n" + 
-        response_body;
-    
-    send(client_fd, response.c_str(), response.size(), 0);  // 发送响应
-}
-
-void WebServer::handleConnection(int client_fd) {
+    // 接收请求数据
     std::string raw_data;
-    bool isConnection = receiveHttpRequest(client_fd, raw_data);
+    bool isConnection = conn.receiveRequest(raw_data);
     if (!isConnection) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             {
                 std::lock_guard<std::mutex> lock(clients_mutex_);
-                Logger::getInstance().log("ERROR", "Client[" + std::to_string(client_fd) + "] is closed due to network error or read error, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
+                Logger::getInstance().log("ERROR", "Client[" + std::to_string(client_fd) + "] is closed due to network error or read error, and it is used " + std::to_string(conn.use_count) + " times.");
+                closeClient(client_fd);
                 clients.erase(client_fd);
             }
-            closeClient(client_fd);
         }
         return;
     }
 
-    HttpRequest request = parseHttpRequest(raw_data);
-    processHttpRequest(client_fd, request);
+    // 处理请求
+    conn.parseRequest(raw_data);
+    conn.sendResponse();
 
+    // 根据连接状态处理
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
-        if (clients[client_fd].keepAlive) {
+        if (conn.is_keep_alive) {
             heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
         } else {
-            Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to http request, and it is used " + std::to_string(clients[client_fd].useCount) + " times.");
+            Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to http request, and it is used " + std::to_string(conn.use_count) + " times.");
             closeClient(client_fd);
             clients.erase(client_fd);
         }
@@ -321,8 +157,9 @@ void WebServer::run() {
         heap_timer_.tick(expired_fds);
 
         for (int fd: expired_fds) {
-            if (clients.count(fd)) {
-                Logger::getInstance().log("INFO", "Client[" + std::to_string(fd) + "] is closed due to timeout, and it is used " + std::to_string(clients[fd].useCount) + " times.");
+            auto it = clients.find(fd);
+            if (it != clients.end()) {
+                Logger::getInstance().log("INFO", "Client[" + std::to_string(fd) + "] is closed due to timeout, and it is used " + std::to_string(it->second.use_count) + " times.");
                 closeClient(fd);
                 clients.erase(fd);
             }

@@ -21,8 +21,8 @@ enum class ParseState {
     FINISH
 };
 
-void parseRequestLine(const std::string&, HttpRequest&);
+void parseRequestLine(const std::string& line, HttpRequest& request);
 
-void parseHeaderLine(const std::string&, HttpRequest&);
+void parseHeaderLine(const std::string& line, HttpRequest& request);
 
-HttpRequest parseHttpRequest(const std::string&);
+HttpRequest parseHttpRequest(const std::string& raw);

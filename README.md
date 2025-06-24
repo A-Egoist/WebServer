@@ -10,11 +10,9 @@
 
 - [x] 完成注册和登录功能，登录成功的用户应该返回 `welcome.html` 界面
 - [x] 完成日志功能
-- [ ] 完成连接池
-    - [ ] TCP 连接池
+- [ ] 完成 TCP 连接池
 
-- [ ] 完成线程池
-    - [ ] 工作线程池
+- [x] 完成工作线程池
 
 - [x] 完成定时器，关闭非活动连接
     - [x] 目前对 HTTP 请求的响应都带有 `"Connection: close\r\n\r\n"`，这样的频繁的连接、断开连接、再连接的过程非常耗费资源，下一步应该添加定时器以关闭长时间没有使用的连接。
@@ -54,7 +52,7 @@ make
 
 ## Version
 
-### Version 0.5
+### Version 0.6
 
 [Link]()
 
@@ -65,7 +63,31 @@ make
 *   加入异步日志系统，有助于调试BUG，定位错误，数据分析；
 *   持久连接，将 Connection 设置为 keep-alive，节约 TCP 连接的开销
 *   添加 Timer 控制连接时间
-*   拓展为多线程 Reactor 模型，但是目前没有解决多线程在使用 webbench 压力测试的时候崩溃的问题
+*   拓展为多线程 Reactor 模型，添加线程池
+*   模块化，将 WebServer 类中对 HTTP 的具体处理放到 `http/` 下
+*   `webbench-1.5` 服务器压力测试，完成时间：2025-6-24 11:58:57
+    ![image-20250624115946580](https://amonologue-image-bed.oss-cn-chengdu.aliyuncs.com/2025/202506241159019.png)
+
+
+
+### Version 0.5
+
+[Link](https://github.com/A-Egoist/WebServer/tree/b854639c0a7b440c91564d307fa45448d07247a0)
+
+已完成 WebServer 的基础功能，包括：
+
+*   处理 GET 和 POST 请求，返回对应的静态内容；
+*   连接 MySQL 数据库，支持用户的注册和登录；
+*   加入异步日志系统，有助于调试BUG，定位错误，数据分析；
+*   持久连接，将 Connection 设置为 keep-alive，节约 TCP 连接的开销
+*   添加 Timer 控制连接时间
+*   拓展为多线程 Reactor 模型
+*   `webbench-1.5` 服务器压力测试，完成时间：2025-6-23 20:14:17
+    ![image-20250623201442703](https://amonologue-image-bed.oss-cn-chengdu.aliyuncs.com/2025/202506232014356.png)
+
+TODO：
+
+-   [ ] 在添加多线程之后，发现 QPS 有一些下降，需要分析原因
 
 
 

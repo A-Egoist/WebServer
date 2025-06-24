@@ -1,6 +1,8 @@
 #include "HTTPConnection.hpp"
 
-HTTPConnection::HTTPConnection(int client_fd) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {}
+HTTPConnection::HTTPConnection(int client_fd, MySQLConnector* mysql) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {
+    mysql_ = mysql;
+}
 
 bool HTTPConnection::receiveRequest(std::string& raw_data) {
     char buffer[READ_BUFFER_];
@@ -81,15 +83,15 @@ void HTTPConnection::parseRequest(const std::string& raw_data) {
 }
 
 void HTTPConnection::sendResponse() {
-    is_keep_alive_ = (request_.headers["Connection"] == "keep-alive");
-    ++ use_count_;
+    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
+    ++ use_count;
 
     // POST
     if (request_.method == "POST") {
         bool success = handlePOST();
         if (success) {
             response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
-            response_ = response_ + (is_keep_alive_ ? "keep-alive" : "close") + "\r\n\r\n";
+            response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
             send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
             return ;
         } else {
@@ -118,7 +120,7 @@ void HTTPConnection::sendResponse() {
         status_line + 
         "Content-Type: " + content_type + "\r\n" + 
         "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: " + (is_keep_alive_ ? "keep-alive" : "close") + "\r\n\r\n" + 
+        "Connection: " + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n" + 
         response_body;
     
     send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送响应
@@ -154,9 +156,9 @@ bool HTTPConnection::handlePOST() {
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request_.body, account);
     if (request_.path == "/register") {
-        success = mysql.insertUser(account["username"], account["password"]);
+        success = mysql_->insertUser(account["username"], account["password"]);
     } else if (request_.path == "/login") {
-        success = mysql.verifyUser(account["username"], account["password"]);
+        success = mysql_->verifyUser(account["username"], account["password"]);
     }
     return success;
 }

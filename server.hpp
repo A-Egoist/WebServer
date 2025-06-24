@@ -27,13 +27,7 @@ private:
     int listen_fd_;  // 
     int epoll_fd_;  // 
     MySQLConnector mysql;
-    struct ClientConnection
-    {
-        std::string buffer;
-        bool keepAlive;
-        int useCount;
-    };
-    std::unordered_map<int, ClientConnection> clients;
+    std::unordered_map<int, HTTPConnection> clients;
     HeapTimer heap_timer_;
     ThreadPool thread_pool_;
     std::mutex clients_mutex_;
@@ -41,16 +35,4 @@ private:
     void initSocket();
     void handleConnection(int client_fd);
     void setNonBlocking(int fd);
-    bool handlePOST(HttpRequest& request, int client_fd);
-    void processHttpRequest(int client_fd, HttpRequest& request);
-    std::string router(std::string& requestPath);
-    bool receiveHttpRequest(int client_fd, std::string& output);
 };
-
-std::string getContentType(const std::string& path);
-
-std::string readFile(const std::string& file_path);
-
-void parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data);
-
-std::string decodeURLComponent(const std::string& s);

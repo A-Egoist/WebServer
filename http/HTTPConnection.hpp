@@ -9,8 +9,11 @@
 
 class HTTPConnection {
 public:
-    HTTPConnection(int client_fd);
-    // ~HTTPConnection();
+    int use_count = 0;
+    bool is_keep_alive;
+
+    explicit HTTPConnection(int client_fd, MySQLConnector* mysql);
+
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
     void sendResponse();
@@ -23,9 +26,7 @@ private:
     HttpRequest request_;
     std::string response_;
     bool is_connection_;
-    bool is_keep_alive_;
-    MySQLConnector mysql;
-    int use_count_ = 0;
+    MySQLConnector* mysql_;
 
     std::string router();
     void handleGET();
