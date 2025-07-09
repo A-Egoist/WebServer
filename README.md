@@ -28,7 +28,7 @@
 
 
 
-## Notes
+## Run
 
 编译并运行 WebServer
 
@@ -52,9 +52,23 @@ make
 
 ## Version
 
-### Version 0.6
+### Version 0.7
 
 [Link]()
+
+
+
+TODO:
+
+-   [ ] 重新整理仓库结构，方便拓展；
+-   [ ] 完善此项目，为之后添加博客、在线聊天室、在线消消乐等功能打好基础；
+-   [ ] 添加项目笔记；
+
+
+
+### Version 0.6
+
+[Link](https://github.com/A-Egoist/WebServer/tree/579c286899e072913da8357decb004b5604fedd0)
 
 已完成 WebServer 的基础功能，包括：
 
@@ -135,6 +149,8 @@ curl -v --header "Connection: keep-alive" http://127.0.0.1:8080
 *   完成一次 `webbench-1.5` 服务器压力测试，完成时间：2025-6-18 21:20:55
     ![image-20250618212041657](https://amonologue-image-bed.oss-cn-chengdu.aliyuncs.com/2025/202506182120838.png)
 
+
+
 ### Version 0.2
 
 [Link](https://github.com/A-Egoist/WebServer/tree/11830bcd8217816af960a1f5e7cb15d7dda5bdcc)
@@ -143,6 +159,7 @@ curl -v --header "Connection: keep-alive" http://127.0.0.1:8080
 
 *   处理 GET 和 POST 请求，返回对应的静态内容；
 *   连接 MySQL 数据库，支持用户的注册和登录；
+*   
 
 ### Version 0.1
 
