@@ -60,7 +60,61 @@ make
 
 TODO:
 
--   [ ] 重新整理仓库结构，方便拓展；
+-   [ ] 重新整理仓库结构，方便拓展
+    目标仓库结构为：
+
+    ```bash
+    webserver/
+    ├── apps/                   # 具体应用实现
+    │   ├── blog/               # 博客应用
+    │   ├── chat/               # 聊天室应用
+    │   ├── game/               # 在线消消乐游戏
+    │   └── ...                 # 其他应用
+    ├── src/
+    │   ├── core/               # 服务器核心组件
+    │   │   ├── epoll/          # epoll 封装
+    │   │   ├── threadpool/     # 线程池实现
+    │   │   ├── timer/          # 定时器管理
+    │   │   ├── connection/     # 连接管理
+    │   │   └── server.cpp      # 服务器主循环
+    │   ├── http/               # HTTP 协议处理
+    │   │   ├── request.cpp     # 请求解析
+    │   │   ├── response.cpp    # 响应生成
+    │   │   ├── router.cpp      # 路由系统
+    │   │   └── middleware/     # 中间件系统
+    │   ├── database/           # 数据库抽象层
+    │   │   ├── mysql/          # MySQL 实现
+    │   │   ├── sqlite/         # SQLite 实现（可选）
+    │   │   └── db_interface.h  # 统一数据库接口
+    │   ├── utils/              # 工具类
+    │   │   ├── logger/         # 日志系统
+    │   │   ├── config/         # 配置解析
+    │   │   ├── buffer/         # 缓冲区管理
+    │   │   └── crypto/         # 加密工具
+    │   └── api/                # 应用开发接口
+    │       ├── application.h   # 应用接口基类
+    │       └── plugin.h        # 插件接口
+    ├── include/                # 公共头文件
+    │   └── webserver/          # 项目头文件命名空间
+    ├── third_party/            # 第三方依赖
+    ├── tests/                  # 测试套件
+    │   ├── unit/               # 单元测试
+    │   ├── integration/        # 集成测试
+    │   └── benchmark/          # 性能测试
+    ├── scripts/                # 实用脚本
+    │   ├── deploy/             # 部署脚本
+    │   └── build/              # 构建脚本
+    ├── config/                 # 配置文件
+    │   ├── server.conf         # 服务器配置
+    │   └── apps/               # 应用配置
+    ├── docs/                   # 项目文档
+    ├── resources/              # 静态资源
+    │   ├── static/             # 静态文件（CSS/JS/图片）
+    │   └── templates/          # HTML 模板
+    ├── CMakeLists.txt          # 主构建配置
+    ├── Dockerfile              # 容器化支持
+    └── .github/                # CI/CD 配置
+    ```
 -   [ ] 完善此项目，为之后添加博客、在线聊天室、在线消消乐等功能打好基础；
 -   [ ] 添加项目笔记；
 
