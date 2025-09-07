@@ -1,4 +1,4 @@
-#include "webserver/http/HTTPConnection.hpp"
+#include "webserver/http/http_connection.hpp"
 
 HTTPConnection::HTTPConnection(int client_fd, MySQLConnector* mysql) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {
     mysql_ = mysql;

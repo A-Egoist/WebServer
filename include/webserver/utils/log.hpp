@@ -10,6 +10,11 @@
 #include <iostream>
 #include "webserver/utils/block_queue.hpp"
 
+#define LOG_INFO(msg) Logger::getInstance().log("INFO", msg)
+#define LOG_DEBUG(msg) Logger::getInstance().log("DEBUG", msg)
+#define LOG_WARNING(msg) Logger::getInstance().log("WARNING", msg)
+#define LOG_ERROR(msg) Logger::getInstance().log("ERROR", msg)
+
 class Logger {
 private:
     Logger();
