@@ -1,4 +1,4 @@
-#include "MySQLConnector.hpp"
+#include "webserver/sql/MySQLConnector.hpp"
 
 MySQLConnector::MySQLConnector() {
     try

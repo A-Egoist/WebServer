@@ -9,12 +9,12 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
-#include "http/http_request.hpp"
-#include "http/HTTPConnection.hpp"
-#include "sql/MySQLConnector.hpp"
-#include "log/log.hpp"
-#include "timer/heaptimer.hpp"
-#include "pool/ThreadPool.hpp"
+#include "webserver/http/http_request.hpp"
+#include "webserver/http/HTTPConnection.hpp"
+#include "webserver/sql/MySQLConnector.hpp"
+#include "webserver/utils/log.hpp"
+#include "webserver/timer/heaptimer.hpp"
+#include "webserver/pool/ThreadPool.hpp"
 
 class WebServer {
 public:

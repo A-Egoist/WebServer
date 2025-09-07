@@ -4,8 +4,8 @@
 #include <cstring>
 #include <fstream>
 #include <netinet/in.h>
-#include "http_request.hpp"
-#include "../sql/MySQLConnector.hpp"
+#include "webserver/http/http_request.hpp"
+#include "webserver/sql/MySQLConnector.hpp"
 
 class HTTPConnection {
 public:

@@ -1,6 +1,6 @@
 #include <iostream>
-#include "server.hpp"
-#include "log/log.hpp"
+#include "webserver/core/server.hpp"
+#include "webserver/utils/log.hpp"
 
 int main() {
     Logger::getInstance().init("running.log", true);
