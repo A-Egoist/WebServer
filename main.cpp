@@ -9,8 +9,8 @@ int main() {
 
     WebServer server(8080);
     server.run();
-    
-    Logger::getInstance().stop();
+
+    // Logger::getInstance().stop();
 
     return 0;
 }

@@ -21,7 +21,7 @@ void Logger::init(const std::string& filename, bool async, int max_queue_size) {
     async_ = async;
     // 打开文件，使用 std::ios::ate 模式，定位到文件末尾
     // 这样每次写入时都不需要重新打开文件
-    log_file_.open(filename, std::ios::ate);
+    log_file_.open(filename, std::ios::app);
     if (!log_file_.is_open()) {
         std::cerr << "Cannot open log file: " << filename << "\n";
         exit(1);

@@ -6,7 +6,7 @@ constexpr int MAX_TIMEOUT = 5000;  // 5 秒未活跃则关闭
 constexpr int MAX_THREAD_COUNT = 10;  // 线程池最大容量
 
 // 构造函数中只是初始化端口号和一些成员变量，listen_fd_ 和 epoll_fd_ 暂时设为无效值。
-WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql(), thread_pool_(MAX_THREAD_COUNT) {}
+WebServer::WebServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1), mysql_(), thread_pool_(MAX_THREAD_COUNT) {}
 
 // 设置文件描述符非阻塞
 void WebServer::setNonBlocking(int fd) {
@@ -69,7 +69,7 @@ void WebServer::handleConnection(int client_fd) {
         std::lock_guard<std::mutex> lock(clients_mutex_);
         // HTTPConnection http_connection(client_fd);
         // auto [iter, success] = clients.try_emplace(client_fd, std::move(http_connection));
-        auto [iter, success] = clients.try_emplace(client_fd, client_fd, &mysql);
+        auto [iter, success] = clients.try_emplace(client_fd, client_fd, &mysql_);
         conn_ptr = &(iter->second);
         ++ conn_ptr->use_count;
     }
