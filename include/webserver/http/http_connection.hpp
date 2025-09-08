@@ -12,7 +12,7 @@ public:
     int use_count = 0;
     bool is_keep_alive;
 
-    explicit HTTPConnection(int client_fd, MySQLConnector* mysql);
+    explicit HTTPConnection(int client_fd, std::shared_ptr<MySQLConnector> mysql);
 
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
@@ -26,7 +26,8 @@ private:
     HttpRequest request_;
     std::string response_;
     bool is_connection_;
-    MySQLConnector* mysql_;
+    std::shared_ptr<MySQLConnector> mysql_;
+    // MySQLConnector* mysql_;
 
     std::string router();
     void handleGET();

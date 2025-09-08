@@ -11,7 +11,7 @@
 
 class MySQLConnector {
 public:
-    MySQLConnector();
+    // MySQLConnector();
     MySQLConnector(const std::string&, const std::string&, const std::string&, const std::string&, unsigned int);
     ~MySQLConnector();
 

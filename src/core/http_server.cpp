@@ -11,8 +11,10 @@ constexpr int MAX_TIMEOUT = 5000;
 HttpServer::HttpServer(int port)
     : epoll_server_(port),
       thread_pool_(10), // 假设线程池大小为10
-      heap_timer_(),
-      mysql_connector_() {
+      heap_timer_() {
+
+    sql_pool_ = SqlPool::getInstance();
+    sql_pool_->init("tcp://127.0.0.1", "root", "Lx@259416", "WebServer_DB", 3306, 10);
 
     // 注册所有回调函数
     epoll_server_.setConnectionCallback(std::bind(&HttpServer::handleNewConnection, this, std::placeholders::_1));
@@ -48,7 +50,8 @@ void HttpServer::handleNewConnection(int listen_fd) {
         }
 
         // 创建新的 HTTPConnection 对象并管理
-        http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd, &mysql_connector_);
+        http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd, sql_pool_->getConnection());
+        // http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd, &mysql_connector_);
 
         // 添加定时器和事件到 EpollServer
         heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
