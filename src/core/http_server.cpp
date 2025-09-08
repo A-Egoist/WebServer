@@ -6,25 +6,31 @@
 #include <unistd.h>
 #include <iostream>
 
-constexpr int MAX_TIMEOUT = 5000;
+constexpr int MAX_TIMEOUT = 1000;  // 自动断开连接的时间设置为 1000ms
 
 HttpServer::HttpServer(int port)
     : epoll_server_(port),
       thread_pool_(10), // 假设线程池大小为10
       heap_timer_() {
+    
+    LOG_INFO("HttpServer constructor started.");
 
     sql_pool_ = SqlPool::getInstance();
     sql_pool_->init("tcp://127.0.0.1", "root", "Lx@259416", "WebServer_DB", 3306, 10);
+    LOG_INFO("SqlPool instance obtained.");
 
     // 注册所有回调函数
     epoll_server_.setConnectionCallback(std::bind(&HttpServer::handleNewConnection, this, std::placeholders::_1));
     epoll_server_.setReadCallback(std::bind(&HttpServer::handleRead, this, std::placeholders::_1));
     // epoll_server_.setWriteCallback(std::bind(&HttpServer::handleWrite, this, std::placeholders::_1)); // 暂不实现，读为主
     epoll_server_.setCloseCallback(std::bind(&HttpServer::handleClose, this, std::placeholders::_1));
+    LOG_INFO("Callbacks set.");
+    LOG_INFO("HttpServer constructor finished.");
 }
 
 HttpServer::~HttpServer() {
     // 析构函数可以为空，因为成员变量会自动析构
+    LOG_INFO("HttpServer destroyed.");
 }
 
 void HttpServer::run() {
@@ -50,8 +56,7 @@ void HttpServer::handleNewConnection(int listen_fd) {
         }
 
         // 创建新的 HTTPConnection 对象并管理
-        http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd, sql_pool_->getConnection());
-        // http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd, &mysql_connector_);
+        http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd);
 
         // 添加定时器和事件到 EpollServer
         heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
@@ -114,5 +119,17 @@ void HttpServer::handleClose(int client_fd) {
 
 // 暂不实现，因为非阻塞写更复杂
 void HttpServer::handleWrite(int client_fd) {
-    // 这里处理写事件，例如发送大量数据时
+    // 从 map 中获取连接
+    // std::lock_guard<std::mutex> lock(connection_mutex_);
+    // auto it = http_connections_.find(client_fd);
+    // if (it == http_connections_.end()) {
+    //     return;
+    // }
+    // HTTPConnection& conn = *(it->second);
+    
+    // // 调用 sendResponse 循环发送数据
+    // if (conn.sendResponse()) {
+    //     // 所有数据已发送，清除 EPOLLOUT 事件
+    //     epoll_server_.updateFd(client_fd, EPOLLIN | EPOLLRDHUP);
+    // }
 }

@@ -46,6 +46,7 @@ std::shared_ptr<MySQLConnector> SqlPool::getConnection() {
     MySQLConnector* raw_conn = conn_queue_.front();
     conn_queue_.pop();
     -- free_conn_count_;
+    LOG_INFO("Allocate a sql connection.");
 
     std::shared_ptr<MySQLConnector> shared_conn(raw_conn, [this](MySQLConnector* p_conn) {
         // 自定义删除器：将连接归还给连接池
@@ -53,6 +54,7 @@ std::shared_ptr<MySQLConnector> SqlPool::getConnection() {
         conn_queue_.push(p_conn);
         ++ free_conn_count_;
         cond_var_.notify_one();  // 唤醒一个等待连接的线程
+        LOG_INFO("Release a sql connection to the pool.");
     });
 
     return shared_conn;

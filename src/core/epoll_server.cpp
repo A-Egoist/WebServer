@@ -73,6 +73,17 @@ void EpollServer::addFd(int fd, uint32_t events) {
     }
 }
 
+void EpollServer::updateFd(int fd, uint32_t events) {
+    epoll_event ev;
+    ev.data.fd = fd;
+    ev.events = events | EPOLLET | EPOLLONESHOT; // 保持边缘触发和 EPOLLONESHOT
+    
+    // 使用 EPOLL_CTL_MOD 操作来修改文件描述符的事件
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ev) == -1) {
+        // 错误处理，可以打印日志
+    }
+}
+
 void EpollServer::removeFd(int fd) {
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr) == -1) {
         perror("epoll_ctl_del failed");

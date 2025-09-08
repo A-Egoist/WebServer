@@ -36,5 +36,6 @@ public:
 
     // 供外部调用的 Epoll 相关接口
     void addFd(int fd, uint32_t events);
+    void updateFd(int fd, uint32_t events);
     void removeFd(int fd);
 };

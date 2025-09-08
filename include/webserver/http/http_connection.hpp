@@ -5,17 +5,20 @@
 #include <fstream>
 #include <netinet/in.h>
 #include "webserver/http/http_request.hpp"
-#include "webserver/sql/MySQLConnector.hpp"
+// #include "webserver/sql/MySQLConnector.hpp"
+#include "webserver/pool/sql_pool.hpp"
 
 class HTTPConnection {
 public:
     int use_count = 0;
     bool is_keep_alive;
 
-    explicit HTTPConnection(int client_fd, std::shared_ptr<MySQLConnector> mysql);
+    explicit HTTPConnection(int client_fd);
 
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
+    void buildResponse();
+    // bool sendResponse();
     void sendResponse();
 
 private:
@@ -23,10 +26,12 @@ private:
     int client_fd_;
     std::string resources_root_path_;
     std::string buffer_;
+    size_t write_buffer_index_ = 0; // 新增：已发送字节数
     HttpRequest request_;
     std::string response_;
     bool is_connection_;
-    std::shared_ptr<MySQLConnector> mysql_;
+    // std::shared_ptr<MySQLConnector> mysql_;
+    SqlPool* sql_pool_;
     // MySQLConnector* mysql_;
 
     std::string router();
