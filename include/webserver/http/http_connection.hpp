@@ -18,8 +18,9 @@ public:
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
     void buildResponse();
-    // bool sendResponse();
-    void sendResponse();
+    bool sendResponse();
+    bool sendFile();
+    // void sendResponse();
 
 private:
     const int READ_BUFFER_ = 4096;
@@ -31,7 +32,7 @@ private:
     std::string response_;
     bool is_connection_;
     // std::shared_ptr<MySQLConnector> mysql_;
-    SqlPool* sql_pool_;
+    // SqlPool* sql_pool_;
     // MySQLConnector* mysql_;
 
     std::string router();

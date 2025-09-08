@@ -70,8 +70,9 @@ void EpollServer::addFd(int fd, uint32_t events) {
 void EpollServer::updateFd(int fd, uint32_t events) {
     epoll_event event{};
     event.data.fd = fd;
+    event.events = events;
     // event.events = events | EPOLLET | EPOLLONESHOT; // 保持边缘触发和 EPOLLONESHOT
-    event.events = events | EPOLLET; // 保持边缘触发和 EPOLLONESHOT
+    // event.events = events | EPOLLET; // 保持边缘触发和 EPOLLONESHOT
     
     // 使用 EPOLL_CTL_MOD 操作来修改文件描述符的事件
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {

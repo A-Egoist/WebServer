@@ -88,13 +88,12 @@ void HTTPConnection::buildResponse() {
     if (request_.method == "POST") {
         bool success = handlePOST();
         if (success) {
-            status_line = "HTTP/1.1 302 Found\r\n";
-            response_body = "";
-            content_type = "";
-            // ... add Location header to some map ...
+            response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
+            response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
+            send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
         } else {
-            status_line = "HTTP/1.1 400 Bad Request\r\n";
-            response_body = readFile("/path/to/error_page.html");
+            status_line = "HTTP/1.1 404 Not Found\r\n";
+            response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
             content_type = "text/html";
         }
     } else { // GET
@@ -106,7 +105,7 @@ void HTTPConnection::buildResponse() {
             content_type = getContentType(file_path);
         } else {
             status_line = "HTTP/1.1 404 Not Found\r\n";
-            response_body = readFile("/path/to/404.html");
+            response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
             content_type = "text/html";
         }
     }
@@ -119,73 +118,81 @@ void HTTPConnection::buildResponse() {
         response_body;
 }
 
+bool HTTPConnection::sendResponse() {
+    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
+
+    size_t remaining = buffer_.size() - write_buffer_index_;
+    while (remaining > 0) {
+        ssize_t bytes_sent = send(client_fd_, buffer_.c_str() + write_buffer_index_, remaining, 0);
+        if (bytes_sent < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // 内核缓冲区已满，返回 false，表示未完成
+                return false;
+            } else {
+                // 发生致命错误
+                return false; // 或抛出异常
+            }
+        }
+        write_buffer_index_ += bytes_sent;
+        remaining -= bytes_sent;
+    }
+    // 所有数据已发送
+    write_buffer_index_ = 0; // 重置
+    buffer_.clear(); // 清空缓冲区
+    // 所有数据发送完毕
+    return true;
+}
+
+bool HTTPConnection::sendFile() {
+    return false;
+}
+
 // bool HTTPConnection::sendResponse() {
-//     size_t remaining = buffer_.size() - write_buffer_index_;
-//     while (remaining > 0) {
-//         ssize_t bytes_sent = send(client_fd_, buffer_.c_str() + write_buffer_index_, remaining, 0);
-//         if (bytes_sent < 0) {
-//             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-//                 // 内核缓冲区已满，返回 false，表示未完成
-//                 return false;
-//             } else {
-//                 // 发生致命错误
-//                 return false; // 或抛出异常
-//             }
+//     is_keep_alive = (request_.headers["Connection"] == "keep-alive");
+//     // is_keep_alive = false;
+//     ++ use_count;
+
+//     // POST
+//     if (request_.method == "POST") {
+//         bool success = handlePOST();
+//         if (success) {
+//             response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
+//             response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
+//             send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
+//             return false;
+//         } else {
+//             // TODO, Incorrect username or password;
 //         }
-//         write_buffer_index_ += bytes_sent;
-//         remaining -= bytes_sent;
 //     }
-//     // 所有数据已发送
-//     write_buffer_index_ = 0; // 重置
-//     buffer_.clear(); // 清空缓冲区
-//     // 所有数据发送完毕
+
+//     // GET
+//     std::string status_line;
+//     std::string response_body;
+//     std::string content_type;
+//     std::string file_path = router();
+//     std::ifstream file(file_path, std::ios::binary);
+    
+//     if (file) {
+//         status_line = "HTTP/1.1 200 OK\r\n";
+//         response_body = readFile(file_path);
+//         content_type = getContentType(file_path);
+//     } else {
+//         status_line = "HTTP/1.1 404 Not Found\r\n";
+//         response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
+//         content_type = "text/html";
+//     }
+
+//     response_ = 
+//         status_line + 
+//         "Content-Type: " + content_type + "\r\n" + 
+//         "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
+//         "Connection: " + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n" + 
+//         response_body;
+    
+//     send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送响应
+
 //     return true;
 // }
-
-void HTTPConnection::sendResponse() {
-    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
-    // is_keep_alive = false;
-    ++ use_count;
-
-    // POST
-    if (request_.method == "POST") {
-        bool success = handlePOST();
-        if (success) {
-            response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
-            response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
-            send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
-            return ;
-        } else {
-            // TODO, Incorrect username or password;
-        }
-    }
-
-    // GET
-    std::string status_line;
-    std::string response_body;
-    std::string content_type;
-    std::string file_path = router();
-    std::ifstream file(file_path, std::ios::binary);
-    
-    if (file) {
-        status_line = "HTTP/1.1 200 OK\r\n";
-        response_body = readFile(file_path);
-        content_type = getContentType(file_path);
-    } else {
-        status_line = "HTTP/1.1 404 Not Found\r\n";
-        response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-        content_type = "text/html";
-    }
-
-    response_ = 
-        status_line + 
-        "Content-Type: " + content_type + "\r\n" + 
-        "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: " + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n" + 
-        response_body;
-    
-    send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送响应
-}
 
 std::string HTTPConnection::router() {
     std::string file_absolute_path;
@@ -216,11 +223,14 @@ bool HTTPConnection::handlePOST() {
     bool success = false;
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request_.body, account);
+    auto sql_pool_ = SqlPool::getInstance();
     auto mysql = sql_pool_->getConnection();
     if (request_.path == "/register") {
         success = mysql->insertUser(account["username"], account["password"]);
+        if (success) LOG_INFO("register succeed.");
     } else if (request_.path == "/login") {
         success = mysql->verifyUser(account["username"], account["password"]);
+        if (success) LOG_INFO("login succeed.");
     }
     return success;
 }
@@ -257,6 +267,8 @@ std::string HTTPConnection::getContentType(const std::string& path) {
         return "image/jpeg";
     if (path.ends_with(".txt"))
         return "text/plain";
+    if (path.ends_with(".mp4"))
+        return "video/mp4";
     return "application/octet-stream";
 }
 
