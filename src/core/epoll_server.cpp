@@ -22,12 +22,6 @@ EpollServer::~EpollServer() {
     }
 }
 
-// 设置文件描述符非阻塞
-void EpollServer::setNonBlocking(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
-
 void EpollServer::initSocket() {
     listen_fd_ = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (listen_fd_ == -1) {
@@ -74,12 +68,13 @@ void EpollServer::addFd(int fd, uint32_t events) {
 }
 
 void EpollServer::updateFd(int fd, uint32_t events) {
-    epoll_event ev;
-    ev.data.fd = fd;
-    ev.events = events | EPOLLET | EPOLLONESHOT; // 保持边缘触发和 EPOLLONESHOT
+    epoll_event event{};
+    event.data.fd = fd;
+    // event.events = events | EPOLLET | EPOLLONESHOT; // 保持边缘触发和 EPOLLONESHOT
+    event.events = events | EPOLLET; // 保持边缘触发和 EPOLLONESHOT
     
     // 使用 EPOLL_CTL_MOD 操作来修改文件描述符的事件
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ev) == -1) {
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
         // 错误处理，可以打印日志
     }
 }
@@ -122,20 +117,30 @@ void EpollServer::run() {
             uint32_t event_type = events[i].events;
 
             if (fd == listen_fd_) {
+                // 处理新连接
                 if (connection_callback_) {
                     connection_callback_(listen_fd_);
                 }
-            } else if (event_type & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
-                if (close_callback_) {
-                    close_callback_(fd);
+            } else {
+                // 处理错误和断开事件
+                if (event_type & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
+                    if (close_callback_) {
+                        close_callback_(fd);
+                    }
                 }
-            } else if (event_type & EPOLLIN) {
-                if (read_callback_) {
-                    read_callback_(fd);
+
+                // 处理可读事件
+                if (event_type & EPOLLIN) {
+                    if (read_callback_) {
+                        read_callback_(fd);
+                    }
                 }
-            } else if (event_type & EPOLLOUT) {
-                if (write_callback_) {
-                    write_callback_(fd);
+
+                // 处理可写事件
+                if (event_type & EPOLLOUT) {
+                    if (write_callback_) {
+                        write_callback_(fd);
+                    }
                 }
             }
         }

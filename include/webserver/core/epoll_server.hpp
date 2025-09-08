@@ -12,10 +12,9 @@ class EpollServer {
 private:
     int port_;
     int listen_fd_;
-    int epoll_fd_;
+    int epoll_fd_;  // epoll 实例
 
     void initSocket();
-    void setNonBlocking(int fd);
 
     EventCallback connection_callback_;
     EventCallback read_callback_;

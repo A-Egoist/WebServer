@@ -22,7 +22,7 @@ HttpServer::HttpServer(int port)
     // 注册所有回调函数
     epoll_server_.setConnectionCallback(std::bind(&HttpServer::handleNewConnection, this, std::placeholders::_1));
     epoll_server_.setReadCallback(std::bind(&HttpServer::handleRead, this, std::placeholders::_1));
-    // epoll_server_.setWriteCallback(std::bind(&HttpServer::handleWrite, this, std::placeholders::_1)); // 暂不实现，读为主
+    epoll_server_.setWriteCallback(std::bind(&HttpServer::handleWrite, this, std::placeholders::_1)); // 暂不实现，读为主
     epoll_server_.setCloseCallback(std::bind(&HttpServer::handleClose, this, std::placeholders::_1));
     LOG_INFO("Callbacks set.");
     LOG_INFO("HttpServer constructor finished.");
@@ -60,7 +60,8 @@ void HttpServer::handleNewConnection(int listen_fd) {
 
         // 添加定时器和事件到 EpollServer
         heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
-        epoll_server_.addFd(client_fd, EPOLLIN | EPOLLET);
+        epoll_server_.addFd(client_fd, EPOLLIN | EPOLLET);  // 可读、边缘触发、一次性触发
+        // epoll_server_.addFd(client_fd, EPOLLIN | EPOLLET | EPOLLONESHOT);  // 可读、边缘触发、一次性触发
 
         Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] connected!");
     }
@@ -99,6 +100,23 @@ void HttpServer::handleRead(int client_fd) {
     });
 }
 
+// 暂不实现，因为非阻塞写更复杂
+void HttpServer::handleWrite(int client_fd) {
+    // 从 map 中获取连接
+    // std::lock_guard<std::mutex> lock(connection_mutex_);
+    // auto it = http_connections_.find(client_fd);
+    // if (it == http_connections_.end()) {
+    //     return;
+    // }
+    // HTTPConnection& conn = *(it->second);
+    
+    // // 调用 sendResponse 循环发送数据
+    // if (conn.sendResponse()) {
+    //     // 所有数据已发送，清除 EPOLLOUT 事件
+    //     epoll_server_.updateFd(client_fd, EPOLLIN | EPOLLRDHUP);
+    // }
+}
+
 void HttpServer::handleClose(int client_fd) {
     // 线程安全地移除连接
     auto it = http_connections_.find(client_fd);
@@ -115,21 +133,4 @@ void HttpServer::handleClose(int client_fd) {
         // 从 map 中移除，unique_ptr 会自动释放内存
         http_connections_.erase(it);
     }
-}
-
-// 暂不实现，因为非阻塞写更复杂
-void HttpServer::handleWrite(int client_fd) {
-    // 从 map 中获取连接
-    // std::lock_guard<std::mutex> lock(connection_mutex_);
-    // auto it = http_connections_.find(client_fd);
-    // if (it == http_connections_.end()) {
-    //     return;
-    // }
-    // HTTPConnection& conn = *(it->second);
-    
-    // // 调用 sendResponse 循环发送数据
-    // if (conn.sendResponse()) {
-    //     // 所有数据已发送，清除 EPOLLOUT 事件
-    //     epoll_server_.updateFd(client_fd, EPOLLIN | EPOLLRDHUP);
-    // }
 }
