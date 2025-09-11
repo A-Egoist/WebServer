@@ -3,6 +3,7 @@
 #include <sys/epoll.h>
 #include <functional>
 #include <unordered_map>
+#include "webserver/timer/heaptimer.hpp"
 
 // 回调函数类型定义
 // 当有新连接或数据可读时，EpollServer会调用这些函数
@@ -13,6 +14,7 @@ private:
     int port_;
     int listen_fd_;
     int epoll_fd_;  // epoll 实例
+    HeapTimer* timer_;  // 定时器
 
     void initSocket();
 
@@ -26,6 +28,9 @@ public:
     ~EpollServer();
 
     void run();
+
+    // 注册定时器
+    void setTimer(HeapTimer* timer);
 
     // 注册回调函数
     void setConnectionCallback(EventCallback callback);

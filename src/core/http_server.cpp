@@ -20,6 +20,9 @@ HttpServer::HttpServer(int port)
     sql_pool->init("tcp://127.0.0.1", "root", "Lx@259416", "WebServer_DB", 3306, 10);
     LOG_INFO("SqlPool instance obtained.");
 
+    // 传递定时器
+    epoll_server_.setTimer(&heap_timer_);
+
     // 注册所有回调函数
     epoll_server_.setConnectionCallback(std::bind(&HttpServer::handleNewConnection, this, std::placeholders::_1));
     epoll_server_.setReadCallback(std::bind(&HttpServer::handleRead, this, std::placeholders::_1));
@@ -88,6 +91,7 @@ void HttpServer::handleRead(int client_fd) {
     bool is_connection_alive = conn_ptr->receiveRequest(raw_data);
     if (!is_connection_alive) {
         // I/O 错误或连接关闭
+        LOG_INFO("Client[" + std::to_string(client_fd) + "] is closed due to I/O error or connection closed.");
         handleClose(client_fd);
         return ;
     }
@@ -110,6 +114,7 @@ void HttpServer::handleRead(int client_fd) {
 
         // c. 通知主线程该连接现在可以写入了
         this->epoll_server_.updateFd(client_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT);
+        this->heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
     });
 }
 
@@ -129,13 +134,16 @@ void HttpServer::handleWrite(int client_fd) {
         if (conn.is_keep_alive) {
             // 长连接，重新监听可读事件
             epoll_server_.updateFd(client_fd, EPOLLIN | EPOLLET | EPOLLONESHOT);
+            heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
         } else {
             // 短连接，处理关闭
+            LOG_INFO("Client[" + std::to_string(client_fd) + "] is closed due to http request.");
             handleClose(client_fd);
         }
     } else {
         // 未发送完毕，继续监听可写事件
         epoll_server_.updateFd(client_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT);
+        heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
     }
 }
 
@@ -143,7 +151,7 @@ void HttpServer::handleClose(int client_fd) {
     // 线程安全地移除连接
     auto it = http_connections_.find(client_fd);
     if (it != http_connections_.end()) {
-        Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] is closed due to timeout or http request.");
+        // LOG_INFO("Client[" + std::to_string(client_fd) + "] is closed due to http request.");
         
         // 从 epoll 和定时器中移除
         epoll_server_.removeFd(client_fd);

@@ -87,6 +87,11 @@ void EpollServer::removeFd(int fd) {
     }
 }
 
+// 设置定时器
+void EpollServer::setTimer(HeapTimer* timer) {
+    timer_ = timer;
+}
+
 void EpollServer::setConnectionCallback(EventCallback callback) {
     connection_callback_ = std::move(callback);
 }
@@ -106,7 +111,10 @@ void EpollServer::setCloseCallback(EventCallback callback) {
 void EpollServer::run() {
     epoll_event events[MAX_EVENTS];
     while (true) {
-        int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1);
+
+        int timeout_ms = (timer_ != nullptr) ? timer_->getNextTick() : -1;
+        // std::cout << "timeout_ms = " << timeout_ms << "\n";
+        int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, timeout_ms);  // 有一个 timeout 参数，决定了最长阻塞的时间
         if (nfds == -1) {
             perror("epoll_wait failed");
             Logger::getInstance().log("ERROR", "epoll_wait failed, shutting down server.");
@@ -126,6 +134,7 @@ void EpollServer::run() {
                 // 处理错误和断开事件
                 if (event_type & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
                     if (close_callback_) {
+                        LOG_INFO("Client[" + std::to_string(fd) + "] is closed due to EPOLLERR | EPOLLRDHUP | EPOLLHUP.");
                         close_callback_(fd);
                     }
                 }
@@ -142,6 +151,19 @@ void EpollServer::run() {
                     if (write_callback_) {
                         write_callback_(fd);
                     }
+                }
+            }
+        }
+
+        // 连接超时关闭
+        if (timer_ != nullptr) {
+            std::vector<int> expired_fds;
+            timer_->tick(expired_fds);
+            for (int fd : expired_fds) {
+                // 调用回调函数来关闭连接
+                if (close_callback_) {
+                    LOG_INFO("Client[" + std::to_string(fd) + "] is closed due to timeout.");
+                    close_callback_(fd);
                 }
             }
         }
