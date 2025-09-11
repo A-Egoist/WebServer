@@ -7,12 +7,15 @@
 class HttpResponse {
 public:
     // 构造函数
-    HttpResponse() : status_code_(200), status_message_("OK") {}
+    HttpResponse() {}
 
     // 设置状态行
-    void set_status(int code, const std::string& message) {
+    void set_status_line(int code, const std::string& message, const bool keep_alive) {
         status_code_ = code;
-        status_message_ = message;
+        status_line_ = message;
+        if (keep_alive) connection_status_ = "keep-alive";
+        else connection_status_ = "close";
+        status_line_ += connection_status_ + "\r\n";
     }
 
     // 添加响应头
@@ -25,28 +28,35 @@ public:
         body_ = body;
     }
 
+    void set_content_type(const std::string& content_type) {
+        content_type_ = content_type;
+    }
+
+    std::string get_status_line() {
+        std::ostringstream status_line_stream;
+        status_line_stream << status_line_ << "\r\n";
+        return status_line_stream.str();
+    }
+
     // 将整个响应转换为字符串，供发送
     std::string toString() const {
         std::ostringstream response_stream;
-        response_stream << "HTTP/1.1 " << status_code_ << " " << status_message_ << "\r\n";
-        
-        // 添加 Content-Length
-        response_stream << "Content-Length: " << body_.size() << "\r\n";
 
-        // 添加其他响应头
-        for (const auto& header : headers_) {
-            response_stream << header.first << ": " << header.second << "\r\n";
-        }
-        
-        response_stream << "\r\n"; // 结束头
-        response_stream << body_; // 添加响应体
+        response_stream << status_line_;
+        response_stream << "Content-Type: " << content_type_ << "\r\n";
+        response_stream << "Content-Length: " << body_.size() << "\r\n";
+        response_stream << "Connection: " << connection_status_ << "\r\n";
+        response_stream << "\r\n";
+        response_stream << body_;
         
         return response_stream.str();
     }
 
 private:
     int status_code_;
-    std::string status_message_;
+    std::string status_line_;
     std::unordered_map<std::string, std::string> headers_;
     std::string body_;
+    std::string content_type_;
+    std::string connection_status_;  // "keep-alive", "close"
 };

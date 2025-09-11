@@ -68,39 +68,6 @@ void HttpServer::handleNewConnection(int listen_fd) {
     }
 }
 
-// void HttpServer::handleRead(int client_fd) {
-//     // 提交任务到线程池
-//     thread_pool_.enqueue([this, client_fd] {
-//         auto it = http_connections_.find(client_fd);
-//         if (it == http_connections_.end()) {
-//             // 连接不存在，直接返回
-//             return;
-//         }
-
-//         HTTPConnection& conn = *(it->second);
-        
-//         // 接收数据
-//         std::string raw_data;
-//         bool is_connection_alive = conn.receiveRequest(raw_data);
-//         if (!is_connection_alive) {
-//             // 连接已关闭或出错，直接处理关闭
-//             handleClose(client_fd);
-//             return;
-//         }
-
-//         // 处理请求并发送响应
-//         conn.parseRequest(raw_data);
-//         conn.sendResponse();
-
-//         // 根据连接状态更新或关闭
-//         if (conn.is_keep_alive) {
-//             heap_timer_.updateTimer(client_fd, MAX_TIMEOUT);
-//         } else {
-//             handleClose(client_fd);
-//         }
-//     });
-// }
-
 void HttpServer::handleRead(int client_fd) {
     // 1. 主线程中加锁，安全地访问共享 map
     std::unique_ptr<HTTPConnection> conn_ptr;

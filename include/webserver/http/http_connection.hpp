@@ -5,6 +5,7 @@
 #include <fstream>
 #include <netinet/in.h>
 #include "webserver/http/http_request.hpp"
+#include "webserver/http/http_response.hpp"
 // #include "webserver/sql/MySQLConnector.hpp"
 #include "webserver/pool/sql_pool.hpp"
 
@@ -29,7 +30,7 @@ private:
     std::string buffer_;
     size_t write_buffer_index_ = 0; // 新增：已发送字节数
     HttpRequest request_;
-    std::string response_;
+    HttpResponse response_;
     bool is_connection_;
     // std::shared_ptr<MySQLConnector> mysql_;
     // SqlPool* sql_pool_;

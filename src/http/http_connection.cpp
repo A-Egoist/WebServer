@@ -78,49 +78,39 @@ void HTTPConnection::parseRequest(const std::string& raw_data) {
 
         if (state == ParseState::FINISH) break;
     }
+
+    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
 }
 
 void HTTPConnection::buildResponse() {
-    std::string status_line;
-    std::string response_body;
-    std::string content_type;
-
     if (request_.method == "POST") {
         bool success = handlePOST();
         if (success) {
-            response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
-            response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
-            send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
+            response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
+            send(client_fd_, response_.get_status_line().c_str(), response_.get_status_line().size(), 0);  // 发送重定向响应
         } else {
-            status_line = "HTTP/1.1 404 Not Found\r\n";
-            response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-            content_type = "text/html";
+            response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
+            response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
+            response_.set_content_type("text/html");
         }
     } else { // GET
         std::string file_path = router();
         std::ifstream file(file_path, std::ios::binary);
         if (file) {
-            status_line = "HTTP/1.1 200 OK\r\n";
-            response_body = readFile(file_path);
-            content_type = getContentType(file_path);
+            response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
+            response_.set_body(readFile(file_path));
+            response_.set_content_type(getContentType(file_path));
         } else {
-            status_line = "HTTP/1.1 404 Not Found\r\n";
-            response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-            content_type = "text/html";
+            response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
+            response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
+            response_.set_content_type("text/html");
         }
     }
 
-    buffer_ = 
-        status_line + 
-        "Content-Type: " + content_type + "\r\n" + 
-        "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-        "Connection: " + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n" + 
-        response_body;
+    buffer_ = response_.toString();
 }
 
 bool HTTPConnection::sendResponse() {
-    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
-
     size_t remaining = buffer_.size() - write_buffer_index_;
     while (remaining > 0) {
         ssize_t bytes_sent = send(client_fd_, buffer_.c_str() + write_buffer_index_, remaining, 0);
@@ -146,53 +136,6 @@ bool HTTPConnection::sendResponse() {
 bool HTTPConnection::sendFile() {
     return false;
 }
-
-// bool HTTPConnection::sendResponse() {
-//     is_keep_alive = (request_.headers["Connection"] == "keep-alive");
-//     // is_keep_alive = false;
-//     ++ use_count;
-
-//     // POST
-//     if (request_.method == "POST") {
-//         bool success = handlePOST();
-//         if (success) {
-//             response_ = "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ";
-//             response_ = response_ + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n";
-//             send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送重定向响应
-//             return false;
-//         } else {
-//             // TODO, Incorrect username or password;
-//         }
-//     }
-
-//     // GET
-//     std::string status_line;
-//     std::string response_body;
-//     std::string content_type;
-//     std::string file_path = router();
-//     std::ifstream file(file_path, std::ios::binary);
-    
-//     if (file) {
-//         status_line = "HTTP/1.1 200 OK\r\n";
-//         response_body = readFile(file_path);
-//         content_type = getContentType(file_path);
-//     } else {
-//         status_line = "HTTP/1.1 404 Not Found\r\n";
-//         response_body = readFile("/home/amonologue/Projects/WebServer/resources/404.html");
-//         content_type = "text/html";
-//     }
-
-//     response_ = 
-//         status_line + 
-//         "Content-Type: " + content_type + "\r\n" + 
-//         "Content-Length: " + std::to_string(response_body.size()) + "\r\n" + 
-//         "Connection: " + (is_keep_alive ? "keep-alive" : "close") + "\r\n\r\n" + 
-//         response_body;
-    
-//     send(client_fd_, response_.c_str(), response_.size(), 0);  // 发送响应
-
-//     return true;
-// }
 
 std::string HTTPConnection::router() {
     std::string file_absolute_path;
