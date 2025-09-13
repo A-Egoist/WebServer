@@ -1,8 +1,8 @@
 #include "webserver/http/http_connection.hpp"
 
-HTTPConnection::HTTPConnection(int client_fd) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {}
+HttpConnection::HttpConnection(int client_fd) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {}
 
-bool HTTPConnection::receiveRequest(std::string& raw_data) {
+bool HttpConnection::receiveRequest(std::string& raw_data) {
     char buffer[READ_BUFFER_];
 
     ssize_t n;
@@ -39,7 +39,7 @@ bool HTTPConnection::receiveRequest(std::string& raw_data) {
     return false;
 }
 
-void HTTPConnection::parseRequest(const std::string& raw_data) {
+void HttpConnection::parseRequest(const std::string& raw_data) {
     std::istringstream stream(raw_data);
     std::string line;
     ParseState state = ParseState::REQUEST_LINE;
@@ -82,7 +82,7 @@ void HTTPConnection::parseRequest(const std::string& raw_data) {
     is_keep_alive = (request_.headers["Connection"] == "keep-alive");
 }
 
-void HTTPConnection::buildResponse() {
+void HttpConnection::buildResponse() {
     if (request_.method == "POST") {
         bool success = handlePOST();
         if (success) {
@@ -110,7 +110,7 @@ void HTTPConnection::buildResponse() {
     buffer_ = response_.toString();
 }
 
-bool HTTPConnection::sendResponse() {
+bool HttpConnection::sendResponse() {
     size_t remaining = buffer_.size() - write_buffer_index_;
     while (remaining > 0) {
         ssize_t bytes_sent = send(client_fd_, buffer_.c_str() + write_buffer_index_, remaining, 0);
@@ -133,11 +133,11 @@ bool HTTPConnection::sendResponse() {
     return true;
 }
 
-bool HTTPConnection::sendFile() {
+bool HttpConnection::sendFile() {
     return false;
 }
 
-std::string HTTPConnection::router() {
+std::string HttpConnection::router() {
     std::string file_absolute_path;
     // 路由匹配
     if (request_.path == "/") {
@@ -158,11 +158,11 @@ std::string HTTPConnection::router() {
     return file_absolute_path;
 }
 
-void HTTPConnection::handleGET() {
+void HttpConnection::handleGET() {
 
 }
 
-bool HTTPConnection::handlePOST() {
+bool HttpConnection::handlePOST() {
     bool success = false;
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request_.body, account);
@@ -178,7 +178,7 @@ bool HTTPConnection::handlePOST() {
     return success;
 }
 
-std::string HTTPConnection::decodeURLComponent(const std::string& s) {
+std::string HttpConnection::decodeURLComponent(const std::string& s) {
     std::string result;
     char ch;
     int i, ii;
@@ -197,7 +197,7 @@ std::string HTTPConnection::decodeURLComponent(const std::string& s) {
     return result;
 }
 
-std::string HTTPConnection::getContentType(const std::string& path) {
+std::string HttpConnection::getContentType(const std::string& path) {
     if (path.ends_with(".html") || path.ends_with(".htm"))
         return "text/html";
     if (path.ends_with(".css"))
@@ -215,14 +215,14 @@ std::string HTTPConnection::getContentType(const std::string& path) {
     return "application/octet-stream";
 }
 
-std::string HTTPConnection::readFile(const std::string& file_path) {
+std::string HttpConnection::readFile(const std::string& file_path) {
     std::ifstream file(file_path, std::ios::binary);
     std::ostringstream oss;
     oss << file.rdbuf();
     return oss.str();
 }
 
-void HTTPConnection::parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
+void HttpConnection::parseFormURLEncoded(const std::string& body, std::unordered_map<std::string, std::string>& data) {
     std::istringstream stream(body);
     std::string pair;
     while (std::getline(stream, pair, '&')) {

@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <iostream>
 
-constexpr int MAX_TIMEOUT = 1000;  // 自动断开连接的时间设置为 1000ms
+constexpr int MAX_TIMEOUT = 5000;  // 自动断开连接的时间设置为 1000ms
 constexpr int MAX_WORK_THREAD = 128;
 
 HttpServer::HttpServer(int port)
@@ -60,7 +60,7 @@ void HttpServer::handleNewConnection(int listen_fd) {
         }
 
         // 创建新的 HTTPConnection 对象并管理
-        http_connections_[client_fd] = std::make_unique<HTTPConnection>(client_fd);
+        http_connections_[client_fd] = std::make_unique<HttpConnection>(client_fd);
 
         // 添加定时器和事件到 EpollServer
         heap_timer_.addTimer(client_fd, MAX_TIMEOUT);
@@ -73,7 +73,7 @@ void HttpServer::handleNewConnection(int listen_fd) {
 
 void HttpServer::handleRead(int client_fd) {
     // 1. 主线程中加锁，安全地访问共享 map
-    std::unique_ptr<HTTPConnection> conn_ptr;
+    std::unique_ptr<HttpConnection> conn_ptr;
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
         auto it = http_connections_.find(client_fd);
@@ -100,7 +100,7 @@ void HttpServer::handleRead(int client_fd) {
 
     // 3. 将耗时的业务逻辑提交给线程池
     thread_pool_.enqueue([this, client_fd, raw_data, connection_ptr]() mutable {
-        auto conn_ptr = std::make_unique<HTTPConnection>(*connection_ptr);
+        auto conn_ptr = std::make_unique<HttpConnection>(*connection_ptr);
         connection_ptr = nullptr;
         // a. 在工作线程中解析请求和构建响应
         conn_ptr->parseRequest(raw_data);
@@ -127,7 +127,7 @@ void HttpServer::handleWrite(int client_fd) {
         return;
     }
 
-    HTTPConnection& conn = *(it->second);  // 取别名
+    HttpConnection& conn = *(it->second);  // 取别名
 
     // 2. 在主线程中进行 I/O 操作：循环发送数据
     if (conn.sendResponse()) {

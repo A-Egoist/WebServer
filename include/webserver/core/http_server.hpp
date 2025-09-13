@@ -27,6 +27,6 @@ private:
     // MySQLConnector mysql_connector_;  // sql 连接
     // SqlPool* sql_pool_;  // 数据库连接池
     HeapTimer heap_timer_;  // 计时器
-    std::unordered_map<int, std::unique_ptr<HTTPConnection>> http_connections_;
+    std::unordered_map<int, std::unique_ptr<HttpConnection>> http_connections_;
     std::mutex connection_mutex_;  // 保护 http_connections_;
 };

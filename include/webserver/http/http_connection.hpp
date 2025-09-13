@@ -9,12 +9,12 @@
 // #include "webserver/sql/MySQLConnector.hpp"
 #include "webserver/pool/sql_pool.hpp"
 
-class HTTPConnection {
+class HttpConnection {
 public:
     int use_count = 0;
     bool is_keep_alive;
 
-    explicit HTTPConnection(int client_fd);
+    explicit HttpConnection(int client_fd);
 
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
