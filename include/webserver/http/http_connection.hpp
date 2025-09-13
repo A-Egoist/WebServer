@@ -33,7 +33,7 @@ private:
     bool is_connection_;
 
     std::string router();
-    void handleGET();
+    bool handleGET();
     bool handlePOST();
     std::string decodeURLComponent(const std::string& s);
     std::string getContentType(const std::string& path);

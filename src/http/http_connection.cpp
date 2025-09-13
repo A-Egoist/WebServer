@@ -46,28 +46,11 @@ void HttpConnection::parseRequest(const std::string& raw_data) {
 }
 
 void HttpConnection::buildResponse() {
+    bool isSuccess = false;
     if (request_.method_ == "POST") {
-        bool success = handlePOST();
-        if (success) {
-            response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
-            send(client_fd_, response_.get_status_line().c_str(), response_.get_status_line().size(), 0);  // 发送重定向响应
-        } else {
-            response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
-            response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
-            response_.set_content_type("text/html");
-        }
+        isSuccess = handlePOST();
     } else { // GET
-        std::string file_path = router();
-        std::ifstream file(file_path, std::ios::binary);
-        if (file) {
-            response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
-            response_.set_body(readFile(file_path));
-            response_.set_content_type(getContentType(file_path));
-        } else {
-            response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
-            response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
-            response_.set_content_type("text/html");
-        }
+        isSuccess = handleGET();
     }
 
     buffer_ = response_.toString();
@@ -97,6 +80,7 @@ bool HttpConnection::sendResponse() {
 }
 
 bool HttpConnection::sendFile() {
+    // TODO
     return false;
 }
 
@@ -121,24 +105,51 @@ std::string HttpConnection::router() {
     return file_absolute_path;
 }
 
-void HttpConnection::handleGET() {
+bool HttpConnection::handleGET() {
+    bool isSuccess = false;
 
+    std::string file_path = router();
+    std::ifstream file(file_path, std::ios::binary);
+    if (file) {
+        isSuccess = true;
+        response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
+        response_.set_body(readFile(file_path));
+        response_.set_content_type(getContentType(file_path));
+    } else {
+        isSuccess = false;
+        response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
+        response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
+        response_.set_content_type("text/html");
+    }
+
+    return isSuccess;
 }
 
 bool HttpConnection::handlePOST() {
-    bool success = false;
+    bool isSuccess = false;
+
     std::unordered_map<std::string, std::string> account;
     parseFormURLEncoded(request_.body_, account);
     auto sql_pool_ = SqlPool::getInstance();
     auto mysql = sql_pool_->getConnection();
     if (request_.path_ == "/register") {
-        success = mysql->insertUser(account["username"], account["password"]);
-        if (success) LOG_INFO("register succeed.");
+        isSuccess = mysql->insertUser(account["username"], account["password"]);
+        if (isSuccess) LOG_INFO("register succeed.");
     } else if (request_.path_ == "/login") {
-        success = mysql->verifyUser(account["username"], account["password"]);
-        if (success) LOG_INFO("login succeed.");
+        isSuccess = mysql->verifyUser(account["username"], account["password"]);
+        if (isSuccess) LOG_INFO("login succeed.");
     }
-    return success;
+
+    if (isSuccess) {
+        response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
+        send(client_fd_, response_.get_status_line().c_str(), response_.get_status_line().size(), 0);  // 发送重定向响应
+    } else {
+        response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
+        response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
+        response_.set_content_type("text/html");
+    }
+
+    return isSuccess;
 }
 
 std::string HttpConnection::decodeURLComponent(const std::string& s) {

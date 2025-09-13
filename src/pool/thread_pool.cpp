@@ -1,4 +1,4 @@
-#include "webserver/pool/ThreadPool.hpp"
+#include "webserver/pool/thread_pool.hpp"
 
 ThreadPool::ThreadPool(size_t threadCount) : stop_(false) {
     for (size_t i = 0; i < threadCount; ++ i) {

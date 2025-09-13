@@ -7,7 +7,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <memory>
-#include "webserver/sql/MySQLConnector.hpp"
+#include "webserver/sql/sql_connector.hpp"
 
 class SqlPool {
 private:

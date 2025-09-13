@@ -2,8 +2,8 @@
 
 #include "webserver/core/epoll_server.hpp"
 #include "webserver/http/http_connection.hpp"
-#include "webserver/sql/MySQLConnector.hpp"
-#include "webserver/pool/ThreadPool.hpp"
+#include "webserver/sql/sql_connector.hpp"
+#include "webserver/pool/thread_pool.hpp"
 #include "webserver/pool/sql_pool.hpp"
 #include "webserver/timer/heaptimer.hpp"
 #include <unordered_map>
