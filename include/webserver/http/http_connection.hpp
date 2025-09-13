@@ -6,7 +6,6 @@
 #include <netinet/in.h>
 #include "webserver/http/http_request.hpp"
 #include "webserver/http/http_response.hpp"
-// #include "webserver/sql/MySQLConnector.hpp"
 #include "webserver/pool/sql_pool.hpp"
 
 class HttpConnection {
@@ -32,9 +31,6 @@ private:
     HttpRequest request_;
     HttpResponse response_;
     bool is_connection_;
-    // std::shared_ptr<MySQLConnector> mysql_;
-    // SqlPool* sql_pool_;
-    // MySQLConnector* mysql_;
 
     std::string router();
     void handleGET();

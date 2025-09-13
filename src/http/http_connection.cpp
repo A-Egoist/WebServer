@@ -40,50 +40,13 @@ bool HttpConnection::receiveRequest(std::string& raw_data) {
 }
 
 void HttpConnection::parseRequest(const std::string& raw_data) {
-    std::istringstream stream(raw_data);
-    std::string line;
-    ParseState state = ParseState::REQUEST_LINE;
-    std::string body;
-    bool hasBody = false;
+    request_.parseRequest(raw_data);
 
-    while (std::getline(stream, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-
-        switch (state) {
-            case ParseState::REQUEST_LINE:
-                parseRequestLine(line, request_);
-                state = ParseState::HEADERS;
-                break;
-            case ParseState::HEADERS:
-                if (line.empty()) {
-                    if (request_.headers.count("Content-Length")) {
-                        hasBody = true;
-                        state = ParseState::BODY;
-                    } else {
-                        state = ParseState::FINISH;
-                    }
-                } else {
-                    parseHeaderLine(line, request_);
-                }
-                break;
-            case ParseState::BODY:
-                request_.body += line;
-                state = ParseState::FINISH;
-                break;
-            case ParseState::FINISH:
-                break;
-        }
-
-        if (state == ParseState::FINISH) break;
-    }
-
-    is_keep_alive = (request_.headers["Connection"] == "keep-alive");
+    is_keep_alive = (request_.headers_["Connection"] == "keep-alive");
 }
 
 void HttpConnection::buildResponse() {
-    if (request_.method == "POST") {
+    if (request_.method_ == "POST") {
         bool success = handlePOST();
         if (success) {
             response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
@@ -140,20 +103,20 @@ bool HttpConnection::sendFile() {
 std::string HttpConnection::router() {
     std::string file_absolute_path;
     // 路由匹配
-    if (request_.path == "/") {
+    if (request_.path_ == "/") {
         file_absolute_path = resources_root_path_ + "/index.html";
-    } else if (request_.path == "/picture") {
+    } else if (request_.path_ == "/picture") {
         file_absolute_path = resources_root_path_ + "/picture.html";
-    } else if (request_.path == "/video") {
+    } else if (request_.path_ == "/video") {
         file_absolute_path = resources_root_path_ + "/video.html";
-    } else if (request_.path == "/login") {
+    } else if (request_.path_ == "/login") {
         file_absolute_path = resources_root_path_ + "/login.html";
-    } else if (request_.path == "/register") {
+    } else if (request_.path_ == "/register") {
         file_absolute_path = resources_root_path_ + "/register.html";
-    } else if (request_.path == "/welcome") {
+    } else if (request_.path_ == "/welcome") {
         file_absolute_path = resources_root_path_ + "/welcome.html";
     } else {
-        file_absolute_path = resources_root_path_ + request_.path;
+        file_absolute_path = resources_root_path_ + request_.path_;
     }
     return file_absolute_path;
 }
@@ -165,13 +128,13 @@ void HttpConnection::handleGET() {
 bool HttpConnection::handlePOST() {
     bool success = false;
     std::unordered_map<std::string, std::string> account;
-    parseFormURLEncoded(request_.body, account);
+    parseFormURLEncoded(request_.body_, account);
     auto sql_pool_ = SqlPool::getInstance();
     auto mysql = sql_pool_->getConnection();
-    if (request_.path == "/register") {
+    if (request_.path_ == "/register") {
         success = mysql->insertUser(account["username"], account["password"]);
         if (success) LOG_INFO("register succeed.");
-    } else if (request_.path == "/login") {
+    } else if (request_.path_ == "/login") {
         success = mysql->verifyUser(account["username"], account["password"]);
         if (success) LOG_INFO("login succeed.");
     }
