@@ -4,32 +4,36 @@
 #include <cstring>
 #include <fstream>
 #include <netinet/in.h>
-#include "http_request.hpp"
-#include "../sql/MySQLConnector.hpp"
+#include "webserver/http/http_request.hpp"
+#include "webserver/http/http_response.hpp"
+#include "webserver/pool/sql_pool.hpp"
 
-class HTTPConnection {
+class HttpConnection {
 public:
     int use_count = 0;
     bool is_keep_alive;
 
-    explicit HTTPConnection(int client_fd, MySQLConnector* mysql);
+    explicit HttpConnection(int client_fd);
 
     bool receiveRequest(std::string& raw_data);
     void parseRequest(const std::string& raw_data);
-    void sendResponse();
+    void buildResponse();
+    bool sendResponse();
+    bool sendFile();
+    // void sendResponse();
 
 private:
     const int READ_BUFFER_ = 4096;
     int client_fd_;
     std::string resources_root_path_;
     std::string buffer_;
+    size_t write_buffer_index_ = 0; // 新增：已发送字节数
     HttpRequest request_;
-    std::string response_;
+    HttpResponse response_;
     bool is_connection_;
-    MySQLConnector* mysql_;
 
     std::string router();
-    void handleGET();
+    bool handleGET();
     bool handlePOST();
     std::string decodeURLComponent(const std::string& s);
     std::string getContentType(const std::string& path);

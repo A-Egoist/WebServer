@@ -27,10 +27,11 @@ public:
     void tick(std::vector<int>& expired_fds);
     // 获取最近一次定时器事件剩余时间
     int getNextTick();
+
 private:
     int64_t getTimeMs() const;
     std::mutex mutex_;
 
     std::priority_queue<TimerNode> heap_;  // 小根堆
-    std::unordered_map<int, int64_t> client_fd_to_expire_;  // client_fd 到过期时间的映射
+    std::unordered_map<int, int64_t> client_fd_to_expire_;  // client_fd 到最新过期时间的映射
 };

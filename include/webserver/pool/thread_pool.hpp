@@ -7,6 +7,8 @@
 #include <condition_variable>
 #include <functional>
 #include <atomic>
+#include "webserver/utils/log.hpp"
+
 
 class ThreadPool {
 public:

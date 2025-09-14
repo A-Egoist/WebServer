@@ -1,4 +1,4 @@
-#include "heaptimer.hpp"
+#include "webserver/timer/heaptimer.hpp"
 
 void HeapTimer::addTimer(int client_fd, int timeout_ms) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -24,10 +24,13 @@ void HeapTimer::tick(std::vector<int>& expired_fds) {
     {
         TimerNode node = heap_.top();
         // 如果已经被移除或存在更新的/更晚的版本，则跳过
-        if (client_fd_to_expire_.count(node.client_fd) == 0 || client_fd_to_expire_[node.client_fd] != node.expire) {
+        auto it = client_fd_to_expire_.find(node.client_fd);
+        if (it == client_fd_to_expire_.end() || it->second != node.expire) {
             heap_.pop();
             continue;
         }
+
+        // 如果堆顶元素没有过期，则其他所有节点也没有过期，退出循环
         if (node.expire > now) break;
 
         expired_fds.push_back(node.client_fd);
@@ -42,8 +45,25 @@ int64_t HeapTimer::getTimeMs() const {
 
 int HeapTimer::getNextTick() {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (heap_.empty()) return -1;  // 无线阻塞
+
+    if (heap_.empty()) return -1;  // 无限阻塞
+
+    // 清理堆顶的所有过期或无效节点
+    while (!heap_.empty()) {
+        TimerNode node = heap_.top();
+        auto it = client_fd_to_expire_.find(node.client_fd);
+        if (it == client_fd_to_expire_.end() || it->second != node.expire) {
+            heap_.pop();
+            continue;
+        }
+        break;
+    }
+
+    if (heap_.empty()) return -1;  // 无限阻塞
+
     int64_t now = getTimeMs();
     int64_t expire = heap_.top().expire;
-    return expire > now ? (expire - now) : 0;  // 最多等待时间
+
+    // 返回下一个过期事件的剩余时间
+    return expire > now ? (expire - now) : 0;
 }

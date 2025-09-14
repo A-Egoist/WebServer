@@ -7,16 +7,16 @@
 #include <cppconn/statement.h>
 #include <cppconn/resultset.h>
 #include <iostream>
-#include <../log/log.hpp>
+#include "webserver/utils/log.hpp"
 
 class MySQLConnector {
 public:
-    MySQLConnector();
     MySQLConnector(const std::string&, const std::string&, const std::string&, const std::string&, unsigned int);
     ~MySQLConnector();
 
     bool insertUser(const std::string&, const std::string&);
     bool verifyUser(const std::string&, const std::string&);
+    
 private:
     sql::Driver* driver_;  // 保存 driver 实例
     sql::Connection* conn_;  // 使用 Connector//C++ 的 Connection 对象

@@ -1,0 +1,30 @@
+#pragma once
+
+#include "webserver/core/epoll_server.hpp"
+#include "webserver/http/http_connection.hpp"
+#include "webserver/sql/sql_connector.hpp"
+#include "webserver/pool/thread_pool.hpp"
+#include "webserver/pool/sql_pool.hpp"
+#include "webserver/timer/heaptimer.hpp"
+#include <unordered_map>
+#include <memory>
+
+class HttpServer {
+public:
+    HttpServer(int port);
+    ~HttpServer();
+
+    void run();
+
+private:
+    void handleNewConnection(int listen_fd);
+    void handleRead(int client_fd);
+    void handleWrite(int client_fd);
+    void handleClose(int client_fd);
+
+    EpollServer epoll_server_;  // epoll server
+    ThreadPool thread_pool_;  // 线程池
+    HeapTimer heap_timer_;  // 计时器
+    std::unordered_map<int, std::unique_ptr<HttpConnection>> http_connections_;
+    std::mutex connection_mutex_;  // 保护 http_connections_;
+};

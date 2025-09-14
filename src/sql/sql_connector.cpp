@@ -1,35 +1,18 @@
-#include "MySQLConnector.hpp"
+#include "webserver/sql/sql_connector.hpp"
 
-MySQLConnector::MySQLConnector() {
+MySQLConnector::MySQLConnector(const std::string& host, const std::string& user, const std::string& passwd, const std::string& dbname, unsigned int port) {
     try
     {
         driver_ = get_driver_instance();
-        conn_ = driver_->connect("tcp://127.0.0.1:3306", "root", "Lx@259416");
-        conn_->setSchema("WebServer_DB");
-        Logger::getInstance().log("INFO", "MySQL connection successful!");
+        conn_ = driver_->connect(host + ":" + std::to_string(port), user, passwd);
+        conn_->setSchema(dbname);
+        // LOG_INFO("MySQL connection successful!");
     }
     catch(sql::SQLException& e)
     {
-        std::cerr << "MySQL Connector /C++ error:" << std::endl;
-        std::cerr << "Error code: " << e.getErrorCode() << std::endl;
-        std::cerr << "SQLState" << e.getSQLState() << std::endl;
-        std::cerr << "Message" << e.what() << std::endl;
-    }
-}
-
-MySQLConnector::MySQLConnector(const std::string& host, const std::string& sql_user, const std::string& password, const std::string& dbname, unsigned int port) {
-    try
-    {
-        driver_ = get_driver_instance();
-        conn_ = driver_->connect("tcp://127.0.0.1:3306", "root", "Lx@259416");
-        conn_->setSchema("WebServer_DB");
-        Logger::getInstance().log("INFO", "MySQL connection successful!");
-    }
-    catch(sql::SQLException& e)
-    {
-        std::cerr << "MySQL Connector /C++ error:" << std::endl;
-        std::cerr << "Error code: " << e.getErrorCode() << std::endl;
-        std::cerr << "SQLState" << e.getSQLState() << std::endl;
+        std::cerr << "MySQL Connector /C++ error:" << "\n";
+        std::cerr << "Error code: " << e.getErrorCode() << "\n";
+        std::cerr << "SQLState" << e.getSQLState() << "\n";
         std::cerr << "Message" << e.what() << std::endl;
     }
 }
