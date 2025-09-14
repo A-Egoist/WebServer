@@ -35,6 +35,8 @@ private:
     std::string router();
     bool handleGET();
     bool handlePOST();
+    void handleRecognizeQR();
+    void handleUpscaleQR();
     std::string decodeURLComponent(const std::string& s);
     std::string getContentType(const std::string& path);
     std::string readFile(const std::string& file_path);

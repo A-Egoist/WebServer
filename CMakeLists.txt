@@ -13,12 +13,16 @@ set(CMAKE_BUILD_TYPE Debug)
 # 查找并连接所需的第三方库
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
+find_package(OpenCV REQUIRED)
+# find_package(ZXing REQUIRED)
 # find_package(MySQL REQUIRED COMPONENTS cppconn)
 
 # 定义头文件搜索路径
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/webserver
+    ${CMAKE_SOURCE_DIR}/include/third_party
+    ${CMAKE_SOURCE_DIR}/apps/qr_app
 )
 
 # 定义项目源文件
@@ -29,6 +33,8 @@ file(GLOB_RECURSE SOURCES
     "src/*/*.cpp"
 )
 
+add_subdirectory(apps/qr_app)
+
 # 添加主可执行程序
 add_executable(${PROJECT_NAME} ${SOURCES} main.cpp)
 
@@ -37,6 +43,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Threads::Threads
     fmt::fmt
     mysqlcppconn
+    qr_processor
 )
 
 # 添加测试目标

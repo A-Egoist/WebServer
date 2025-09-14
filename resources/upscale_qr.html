@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>二维码超分辨率 - Amonologue</title>
+    <link rel="icon" href="images/favicon.ico">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/animate.css">
+    <link rel="stylesheet" href="css/magnific-popup.css">
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .upscale-section {
+            padding-top: 100px;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .upload-container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .image-preview {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            gap: 20px;
+        }
+        .image-box {
+            text-align: center;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .image-box img {
+            max-width: 100%;
+            /* height: auto; */
+            height: 300px;
+            max-height: 300px;
+            object-fit: contain;
+        }
+        #result-text {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: .3rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="preloader">
+        <div class="spinner"><span class="spinner-rotate"></span></div>
+    </div>
+    <div class="navbar custom-navbar navbar-fixed-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <button class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon icon-bar"></span><span class="icon icon-bar"></span><span class="icon icon-bar"></span>
+                </button>
+                <a href="/" class="navbar-brand">Amonologue</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a class="smoothScroll" href="/">首页</a></li>
+                    <li><a class="smoothScroll" href="/picture">图片</a></li>
+                    <li><a class="smoothScroll" href="/video">视频</a></li>
+                    <li><a class="smoothScroll" href="/echo">回声聊天室</a></li>
+                    <li><a class="smoothScroll" href="/upscale_qr">二维码超分辨率</a></li>
+                    <li><a class="smoothScroll" href="/login">登录</a></li>
+                    <li><a class="smoothScroll" href="/register">注册</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <section id="upscale-qr" class="upscale-section">
+        <div class="container">
+            <div class="row wow fadeInUp" data-wow-delay="0.6s">
+                <div class="col-md-12 text-center">
+                    <h1>二维码超分辨率</h1>
+                    <p class="lead">选择一张本地二维码图片，服务器将尝试对其进行超分辨率。</p>
+                </div>
+            </div>
+            <div class="row wow fadeInUp" data-wow-delay="0.8s">
+                <div class="col-md-offset-2 col-md-8 col-sm-12 upload-container">
+                    <div class="input-group">
+                        <label class="input-group-btn">
+                            <span class="btn btn-primary">
+                                选择图片 <input type="file" id="file-input" style="display: none;">
+                            </span>
+                        </label>
+                        <input type="text" class="form-control" readonly placeholder="未选择文件...">
+                    </div>
+                    <button id="upload-btn" class="btn btn-success btn-block" style="margin-top:10px; display: none;">开始超分辨率</button>
+                    
+                    <div id="loading-spinner" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p>正在处理，请稍候...</p>
+                    </div>
+
+                    <div class="image-preview">
+                        <div class="image-box" id="original-box" style="display: none;">
+                            <h4>原始图片</h4>
+                            <img id="original-image" alt="Original QR Code">
+                            <div id="original-result" class="text-danger" style="margin-top:10px;"></div>
+                        </div>
+                        <div class="image-box" id="upscaled-box" style="display: none;">
+                            <h4>超分辨率图片</h4>
+                            <img id="upscaled-image" alt="Upscaled QR Code">
+                            <div id="upscaled-result" class="text-success" style="margin-top:10px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="final-result" class="text-center" style="margin-top:20px;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/smoothscroll.js"></script>
+    <script src="js/jquery.magnific-popup.min.js"></script>
+    <script src="js/magnific-popup-options.js"></script>
+    <script src="js/wow.min.js"></script>
+    <script src="js/custom.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const originalImage = document.getElementById('original-image');
+            const upscaledImage = document.getElementById('upscaled-image');
+            const originalResult = document.getElementById('original-result');
+            const upscaledResult = document.getElementById('upscaled-result');
+            const finalResult = document.getElementById('final-result');
+            const originalBox = document.getElementById('original-box');
+            const upscaledBox = document.getElementById('upscaled-box');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const fileInputPlaceholder = document.querySelector('.input-group input[readonly]');
+
+            // 步骤1: 处理文件选择
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    fileInputPlaceholder.value = file.name;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        originalImage.src = event.target.result;
+                        originalBox.style.display = 'block';
+                        upscaledBox.style.display = 'none';
+                        uploadBtn.style.display = 'block';
+                        originalResult.textContent = '';
+                        upscaledResult.textContent = '';
+                        finalResult.textContent = '';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // 步骤2: 识别并处理图片
+            uploadBtn.addEventListener('click', async () => {
+                if (!fileInput.files[0]) {
+                    alert('请先选择一个文件！');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('qr_code', file);
+                
+                uploadBtn.style.display = 'none';
+                loadingSpinner.style.display = 'block';
+
+                try {
+                    // 第一次请求：识别原始图片
+                    const recognizeResponse = await fetch('/recognize_qr', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const recognizeData = await recognizeResponse.json();
+
+                    if (recognizeData.success) {
+                        // 识别成功，直接展示结果
+                        originalResult.textContent = '识别成功: ' + recognizeData.result;
+                        finalResult.textContent = '识别成功，无需超分。结果: ' + recognizeData.result;
+                    } else {
+                        // 识别失败，将图片发送给超分服务器
+                        originalResult.textContent = '识别失败，正在超分...';
+                        finalResult.textContent = '识别失败，正在超分...';
+                        
+                        const upscaleResponse = await fetch('/upscale_qr', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const upscaledBlob = await upscaleResponse.blob();
+                        const upscaledImageUrl = URL.createObjectURL(upscaledBlob);
+                        
+                        // 将超分后的图片发送给服务器再次识别
+                        const upscaleFormData = new FormData();
+                        upscaleFormData.append('qr_code', upscaledBlob, 'upscaled.png');
+                        
+                        const upscaledRecognizeResponse = await fetch('/recognize_qr', {
+                            method: 'POST',
+                            body: upscaleFormData
+                        });
+                        const upscaledRecognizeData = await upscaledRecognizeResponse.json();
+
+                        upscaledImage.src = upscaledImageUrl;
+                        upscaledBox.style.display = 'block';
+                        
+                        if (upscaledRecognizeData.success) {
+                            upscaledResult.textContent = '识别成功: ' + upscaledRecognizeData.result;
+                            finalResult.textContent = '超分后识别成功。结果: ' + upscaledRecognizeData.result;
+                        } else {
+                            upscaledResult.textContent = '识别失败';
+                            finalResult.textContent = '超分后仍无法识别。';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    finalResult.textContent = '请求出错，请稍后重试。';
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                    uploadBtn.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 #include "webserver/http/http_connection.hpp"
+#include "qr_processor.hpp"
+#include <nlohmann/json.hpp>
 
 HttpConnection::HttpConnection(int client_fd) : client_fd_(client_fd), is_connection_(true), resources_root_path_("/home/amonologue/Projects/WebServer/resources") {}
 
@@ -101,6 +103,8 @@ std::string HttpConnection::router() {
         file_absolute_path = resources_root_path_ + "/welcome.html";
     } else if (request_.path_ == "/echo") {
         file_absolute_path = resources_root_path_ + "/echo.html";
+    } else if (request_.path_ == "/upscale_qr") {
+        file_absolute_path = resources_root_path_ + "/upscale_qr.html";
     } else {
         file_absolute_path = resources_root_path_ + request_.path_;
     }
@@ -152,16 +156,79 @@ bool HttpConnection::handlePOST() {
             response_.set_content_type("text/html");
         }
     } else if (request_.path_ == "/echo") {
-        std::cout << request_.body_ << std::endl;
+        std::cout << "Received: " << request_.body_ << std::endl;
         response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
         response_.set_body(request_.body_);
         request_.body_ = "";
         response_.set_content_type("text/plain");
 
         return true;
+    } else if (request_.path_ == "/recognize_qr") {
+        handleRecognizeQR();
+    } else if (request_.path_ == "/upscale_qr") {
+        handleUpscaleQR();   
     }
 
     return isSuccess;
+}
+
+void HttpConnection::handleRecognizeQR() {
+    // 从请求头部获取 boundary
+    std::string content_type = request_.getHeader("Content-Type");
+    size_t boundary_pos = content_type.find("boundary=");
+    if (boundary_pos == std::string::npos) {
+        // 请求类型错误
+        response_.set_status_line(400, "HTTP/1.1 400 Bad Request\r\n", is_keep_alive);
+        response_.set_body("Missing boundary in Content-Type.");
+        return;
+    }
+    std::string boundary = content_type.substr(boundary_pos + 9);
+
+    // 调用新函数来提取图片数据
+    std::vector<unsigned char> imageData = request_.extractFileData(boundary);
+
+    std::string result = recognizeQrCode(imageData);
+
+    nlohmann::json jsonResponse;
+    if (!result.empty()) {
+        jsonResponse["success"] = true;
+        jsonResponse["result"] = result;
+    } else {
+        jsonResponse["success"] = false;
+    }
+
+    response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
+    response_.set_content_type("application/json");
+    response_.set_body(jsonResponse.dump());
+}
+
+void HttpConnection::handleUpscaleQR() {
+    // 从请求头部获取 boundary
+    std::string content_type = request_.getHeader("Content-Type");
+    size_t boundary_pos = content_type.find("boundary=");
+    if (boundary_pos == std::string::npos) {
+        // 请求类型错误
+        response_.set_status_line(400, "Bad Request", false);
+        response_.set_body("Missing boundary in Content-Type.");
+        return;
+    }
+    std::string boundary = content_type.substr(boundary_pos + 9);
+    
+    // 调用新函数来提取图片数据
+    std::vector<unsigned char> imageData = request_.extractFileData(boundary);
+
+    std::vector<unsigned char> upscaledData = upscaleQrCode(imageData);
+
+    if (upscaledData.empty()) {
+        response_.set_status_line(500, "HTTP/1.1 500 Internal Server Error\r\n", is_keep_alive);
+        response_.set_content_type("text/plain");
+        response_.set_body("Upscale failed.");
+        return;
+    }
+
+    response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
+    response_.set_content_type("image/png");
+    response_.set_body(std::string(upscaledData.begin(), upscaledData.end()));
 }
 
 std::string HttpConnection::decodeURLComponent(const std::string& s) {
