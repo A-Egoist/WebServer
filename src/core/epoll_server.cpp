@@ -72,7 +72,7 @@ void EpollServer::updateFd(int fd, uint32_t events) {
     event.data.fd = fd;
     event.events = events;
     // event.events = events | EPOLLET | EPOLLONESHOT; // 保持边缘触发和 EPOLLONESHOT
-    // event.events = events | EPOLLET; // 保持边缘触发和 EPOLLONESHOT
+    // event.events = events | EPOLLET; // 保持边缘触发
     
     // 使用 EPOLL_CTL_MOD 操作来修改文件描述符的事件
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
@@ -113,7 +113,6 @@ void EpollServer::run() {
     while (true) {
 
         int timeout_ms = (timer_ != nullptr) ? timer_->getNextTick() : -1;
-        // std::cout << "timeout_ms = " << timeout_ms << "\n";
         int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, timeout_ms);  // 有一个 timeout 参数，决定了最长阻塞的时间
         if (nfds == -1) {
             perror("epoll_wait failed");

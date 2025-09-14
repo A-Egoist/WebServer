@@ -6,14 +6,6 @@
 
 template<typename T>
 class BlockingQueue {
-private:
-    std::queue<T> queue_;
-    mutable std::mutex mutex_;
-    std::condition_variable cond_productor_;  // 生产者条件变量
-    std::condition_variable cond_consumer_;  // 消费者条件变量
-    size_t max_size_;
-    std::atomic<bool> is_closed_{false};  // 控制队列是否在没有任务的时候阻塞，当为 true 时，pop 操作不再等待，而是立即返回，用于优雅退出。
-
 public:
     BlockingQueue(size_t max_size = 10000): max_size_(max_size) {}
 
@@ -63,4 +55,12 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return queue_.size();
     }
+
+private:
+    std::queue<T> queue_;
+    mutable std::mutex mutex_;
+    std::condition_variable cond_productor_;  // 生产者条件变量
+    std::condition_variable cond_consumer_;  // 消费者条件变量
+    size_t max_size_;
+    std::atomic<bool> is_closed_{false};  // 控制队列是否在没有任务的时候阻塞，当为 true 时，pop 操作不再等待，而是立即返回，用于优雅退出。
 };

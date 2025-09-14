@@ -24,8 +24,6 @@ private:
 
     EpollServer epoll_server_;  // epoll server
     ThreadPool thread_pool_;  // 线程池
-    // MySQLConnector mysql_connector_;  // sql 连接
-    // SqlPool* sql_pool_;  // 数据库连接池
     HeapTimer heap_timer_;  // 计时器
     std::unordered_map<int, std::unique_ptr<HttpConnection>> http_connections_;
     std::mutex connection_mutex_;  // 保护 http_connections_;
