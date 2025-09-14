@@ -54,7 +54,7 @@ void HttpServer::handleNewConnection(int listen_fd) {
                 break;
             } else {
                 perror("accept failed");
-                Logger::getInstance().log("ERROR", "Accept failed.");
+                LOG_ERROR("Accept failed.");
                 break;
             }
         }
@@ -67,7 +67,7 @@ void HttpServer::handleNewConnection(int listen_fd) {
         // epoll_server_.addFd(client_fd, EPOLLIN | EPOLLET);  // 可读、边缘触发、一次性触发
         epoll_server_.addFd(client_fd, EPOLLIN | EPOLLET | EPOLLONESHOT);  // 可读、边缘触发、一次性触发
 
-        Logger::getInstance().log("INFO", "Client[" + std::to_string(client_fd) + "] connected!");
+        LOG_INFO("Client[" + std::to_string(client_fd) + "] connected!");
     }
 }
 

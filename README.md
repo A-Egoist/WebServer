@@ -1718,7 +1718,7 @@ make
     -   [x] 重构定时器
 -   [x] 解决连接长时间不自动释放的问题
 
-![image-20250914185112889](C:\Users\Amonologue\AppData\Roaming\Typora\typora-user-images\image-20250914185112889.png)
+![image-20250914185112889](https://amonologue-image-bed.oss-cn-chengdu.aliyuncs.com/2025/202509141900013.png)
 
 
 

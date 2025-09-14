@@ -54,7 +54,7 @@ void EpollServer::initSocket() {
     }
 
     addFd(listen_fd_, EPOLLIN | EPOLLET);
-    Logger::getInstance().log("INFO", "EpollServer initialized. Listening on port " + std::to_string(port_));
+    LOG_INFO("EpollServer initialized. Listening on port " + std::to_string(port_));
 }
 
 void EpollServer::addFd(int fd, uint32_t events) {
@@ -63,7 +63,7 @@ void EpollServer::addFd(int fd, uint32_t events) {
     event.events = events;
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
         perror("epoll_ctl_add failed");
-        Logger::getInstance().log("ERROR", "Failed to add fd " + std::to_string(fd) + " to epoll.");
+        LOG_ERROR("Failed to add fd " + std::to_string(fd) + " to epoll.");
     }
 }
 
@@ -83,7 +83,7 @@ void EpollServer::updateFd(int fd, uint32_t events) {
 void EpollServer::removeFd(int fd) {
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr) == -1) {
         perror("epoll_ctl_del failed");
-        Logger::getInstance().log("ERROR", "Failed to remove fd " + std::to_string(fd) + " from epoll.");
+        LOG_ERROR("Failed to remove fd " + std::to_string(fd) + " from epoll.");
     }
 }
 
@@ -116,7 +116,7 @@ void EpollServer::run() {
         int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, timeout_ms);  // 有一个 timeout 参数，决定了最长阻塞的时间
         if (nfds == -1) {
             perror("epoll_wait failed");
-            Logger::getInstance().log("ERROR", "epoll_wait failed, shutting down server.");
+            LOG_ERROR("epoll_wait failed, shutting down server.");
             break;
         }
 
