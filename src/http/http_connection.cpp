@@ -99,6 +99,8 @@ std::string HttpConnection::router() {
         file_absolute_path = resources_root_path_ + "/register.html";
     } else if (request_.path_ == "/welcome") {
         file_absolute_path = resources_root_path_ + "/welcome.html";
+    } else if (request_.path_ == "/echo") {
+        file_absolute_path = resources_root_path_ + "/echo.html";
     } else {
         file_absolute_path = resources_root_path_ + request_.path_;
     }
@@ -128,25 +130,35 @@ bool HttpConnection::handleGET() {
 bool HttpConnection::handlePOST() {
     bool isSuccess = false;
 
-    std::unordered_map<std::string, std::string> account;
-    parseFormURLEncoded(request_.body_, account);
-    auto sql_pool_ = SqlPool::getInstance();
-    auto mysql = sql_pool_->getConnection();
-    if (request_.path_ == "/register") {
-        isSuccess = mysql->insertUser(account["username"], account["password"]);
-        if (isSuccess) LOG_INFO("register succeed.");
-    } else if (request_.path_ == "/login") {
-        isSuccess = mysql->verifyUser(account["username"], account["password"]);
-        if (isSuccess) LOG_INFO("login succeed.");
-    }
+    if (request_.path_ == "/register" || request_.path_ == "/login") {
+        std::unordered_map<std::string, std::string> account;
+        parseFormURLEncoded(request_.body_, account);
+        auto sql_pool_ = SqlPool::getInstance();
+        auto mysql = sql_pool_->getConnection();
+        if (request_.path_ == "/register") {
+            isSuccess = mysql->insertUser(account["username"], account["password"]);
+            if (isSuccess) LOG_INFO("register succeed.");
+        } else if (request_.path_ == "/login") {
+            isSuccess = mysql->verifyUser(account["username"], account["password"]);
+            if (isSuccess) LOG_INFO("login succeed.");
+        }
 
-    if (isSuccess) {
-        response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
-        send(client_fd_, response_.get_status_line().c_str(), response_.get_status_line().size(), 0);  // 发送重定向响应
-    } else {
-        response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
-        response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
-        response_.set_content_type("text/html");
+        if (isSuccess) {
+            response_.set_status_line(302, "HTTP/1.1 302 Found\r\nLocation: /welcome\r\nContent-Length: 0\r\nConnection: ", is_keep_alive);
+            send(client_fd_, response_.get_status_line().c_str(), response_.get_status_line().size(), 0);  // 发送重定向响应
+        } else {
+            response_.set_status_line(404, "HTTP/1.1 404 Not Found\r\n", is_keep_alive);
+            response_.set_body(readFile("/home/amonologue/Projects/WebServer/resources/404.html"));
+            response_.set_content_type("text/html");
+        }
+    } else if (request_.path_ == "/echo") {
+        std::cout << request_.body_ << std::endl;
+        response_.set_status_line(200, "HTTP/1.1 200 OK\r\n", is_keep_alive);
+        response_.set_body(request_.body_);
+        request_.body_ = "";
+        response_.set_content_type("text/plain");
+
+        return true;
     }
 
     return isSuccess;

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>回声聊天室 - Amonologue</title>
+    <link rel="icon" href="images/favicon.ico">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/animate.css">
+    <link rel="stylesheet" href="css/magnific-popup.css">
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 聊天室通用样式 */
+        .echo-section {
+            padding-top: 100px;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            /* 替换或新增以下背景样式 */
+        }
+        
+        .chat-container {
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chat-box {
+            flex-grow: 1;
+            /* max-height: 70vh; 消息显示区域的最大高度 */
+            height: 800px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            /* background-color: #fff; */
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: .25rem;
+
+            background-image: url('images/instagram-image2.jpg'); /* 替换成你的图片路径 */
+            background-size: cover; /* 确保背景图覆盖整个区域 */
+            background-position: center; /* 居中显示背景图 */
+            background-repeat: no-repeat; /* 防止背景图重复 */
+        }
+
+        .message-input-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .message-input-group input {
+            flex-grow: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .message-input-group button {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        /* 对话界面核心样式 */
+        .message-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .message-container.user {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .message-container.server {
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 10px;
+            object-fit: cover;
+        }
+
+        .message-content-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-container.user .message-content-wrapper {
+            align-items: flex-end;
+        }
+
+        .message-container.server .message-content-wrapper {
+            align-items: flex-start;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .message-container.user .message-header {
+            flex-direction: row-reverse;
+        }
+
+        .message-header .name {
+            font-weight: bold;
+        }
+
+        .message-header .timestamp {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 450px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .message-container.user .message-content {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .message-container.server .message-content {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+    </style>
+</head>
+
+<body data-spy="scroll" data-target=".navbar-collapse" data-offset="50">
+
+    <div class="preloader">
+        <div class="spinner">
+            <span class="spinner-rotate"></span>
+        </div>
+    </div>
+
+    <div class="navbar custom-navbar navbar-fixed-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <button class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon icon-bar"></span>
+                    <span class="icon icon-bar"></span>
+                    <span class="icon icon-bar"></span>
+                </button>
+                <a href="/" class="navbar-brand">Amonologue</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a class="smoothScroll" href="/">首页</a></li>
+                    <li><a class="smoothScroll" href="/picture">图片</a></li>
+                    <li><a class="smoothScroll" href="/video">视频</a></li>
+                    <li><a class="smoothScroll" href="/echo">回声聊天室</a></li>
+                    <li><a class="smoothScroll" href="/login">登录</a></li>
+                    <li><a class="smoothScroll" href="/register">注册</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <section id="echo-chat" class="echo-section">
+        <div class="container">
+            <div class="row wow fadeInUp" data-wow-delay="0.6s">
+                <div class="col-md-12 text-center">
+                    <h1>回声聊天室</h1>
+                    <p class="lead">输入任何内容，服务器将原样返回。</p>
+                </div>
+            </div>
+            <div class="row wow fadeInUp" data-wow-delay="0.8s">
+                <div class="col-md-offset-2 col-md-8 col-sm-12">
+                    <div class="panel panel-default chat-container">
+                        <div class="panel-body">
+                            <div id="chat-box">
+                                </div>
+                        </div>
+                        <div class="panel-footer message-input-group">
+                            <input type="text" id="message-input" class="form-control" placeholder="输入消息..." onkeydown="handleEnter(event)">
+                            <button class="btn btn-primary" onclick="sendMessage()">发送</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/smoothscroll.js"></script>
+    <script src="js/jquery.magnific-popup.min.js"></script>
+    <script src="js/magnific-popup-options.js"></script>
+    <script src="js/wow.min.js"></script>
+    <script src="js/custom.js"></script>
+    <script>
+        function sendMessage() {
+            const inputElement = document.getElementById('message-input');
+            const message = inputElement.value;
+            if (message.trim() === '') return;
+
+            displayMessage('user', message);
+            inputElement.value = '';
+
+            fetch('/echo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain'
+                },
+                body: message
+            })
+            .then(response => response.text())
+            .then(echoMessage => {
+                displayMessage('server', echoMessage);
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function displayMessage(sender, text) {
+            const chatBox = document.getElementById('chat-box');
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+
+            // 创建消息容器
+            const messageContainer = document.createElement('div');
+            messageContainer.className = `message-container ${sender}`;
+
+            // 决定头像、名称和顺序
+            const isUser = sender === 'user';
+            const avatarSrc = isUser ? 'images/user-avatar.png' : 'images/server-avatar.png';
+            const name = isUser ? '用户' : '服务器';
+            
+            const avatarImg = document.createElement('img');
+            avatarImg.className = 'avatar';
+            avatarImg.src = avatarSrc;
+
+            const messageContentWrapper = document.createElement('div');
+            messageContentWrapper.className = 'message-content-wrapper';
+
+            const messageHeader = document.createElement('div');
+            messageHeader.className = 'message-header';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'name';
+            nameSpan.textContent = name;
+            
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp';
+            timestampSpan.textContent = timestamp;
+
+            if (isUser) {
+                messageHeader.appendChild(timestampSpan);
+                messageHeader.appendChild(nameSpan);
+            } else {
+                messageHeader.appendChild(nameSpan);
+                messageHeader.appendChild(timestampSpan);
+            }
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = text;
+            
+            messageContentWrapper.appendChild(messageHeader);
+            messageContentWrapper.appendChild(messageContent);
+
+            if (isUser) {
+                messageContainer.appendChild(messageContentWrapper);
+                messageContainer.appendChild(avatarImg);
+            } else {
+                messageContainer.appendChild(avatarImg);
+                messageContainer.appendChild(messageContentWrapper);
+            }
+            
+            chatBox.appendChild(messageContainer);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleEnter(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+
+</html>
