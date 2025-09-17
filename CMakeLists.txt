@@ -14,6 +14,7 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(Torch REQUIRED)
 # find_package(ZXing REQUIRED)
 # find_package(MySQL REQUIRED COMPONENTS cppconn)
 
